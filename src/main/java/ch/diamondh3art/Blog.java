@@ -17,7 +17,7 @@ public class Blog {
     public Blog() {
     }
 
-    public Blog(String content, String title) {
+    public Blog(String title, String content) {
         this.content = content;
         this.title = title;
     }
