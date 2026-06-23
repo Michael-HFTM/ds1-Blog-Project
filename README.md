@@ -11,8 +11,20 @@ This is a project for the class 'Distributed Systems 1' at HFTM Grenchen.
 ---
 
 For now this project only contains the base Quarkus setup.
-The only changes to the project are:
-- Add a basic [Endpoint](http://localhost:8080/blog) for the Blog Resource
+The only features implemented are:
+- Add a basic [Endpoint](http://localhost:8080/blog) for the blog resource
+- Docker-Compose for local database setup
+- Some blog entities with corresponding repositories, services and tests 
+  - DataInitialization.java inserts some initial data into the database
+
+
+---
+# Local DB
+To avoid compatibility issues with Quarkus and Docker hosted in WSL, there is a docker-compose file for a local database setup.
+```shell script
+# start the database (form the root folder)
+docker-compose up -d
+```
 
 ---
 # Quarkus 
