@@ -1,6 +1,8 @@
-package ch.diamondh3art;
+package ch.diamondh3art.blog.control;
 
 import java.util.List;
+
+import ch.diamondh3art.blog.entity.Blog;
 import io.quarkus.logging.Log;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;

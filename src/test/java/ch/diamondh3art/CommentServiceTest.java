@@ -1,5 +1,11 @@
 package ch.diamondh3art;
 
+import ch.diamondh3art.blog.control.BlogService;
+import ch.diamondh3art.blog.control.CommentService;
+import ch.diamondh3art.blog.control.UserService;
+import ch.diamondh3art.blog.entity.Blog;
+import ch.diamondh3art.blog.entity.Comment;
+import ch.diamondh3art.blog.entity.User;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;

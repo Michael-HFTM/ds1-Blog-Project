@@ -1,4 +1,4 @@
-package ch.diamondh3art;
+package ch.diamondh3art.blog.entity;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;

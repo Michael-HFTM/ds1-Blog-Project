@@ -2,6 +2,9 @@ package ch.diamondh3art;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import java.util.List;
+
+import ch.diamondh3art.blog.control.BlogService;
+import ch.diamondh3art.blog.entity.Blog;
 import org.junit.jupiter.api.Test;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;

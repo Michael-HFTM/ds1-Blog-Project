@@ -1,4 +1,4 @@
-package ch.diamondh3art;
+package ch.diamondh3art.blog.boundry;
 
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
