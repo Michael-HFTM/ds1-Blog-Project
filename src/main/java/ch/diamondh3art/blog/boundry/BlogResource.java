@@ -1,16 +1,52 @@
 package ch.diamondh3art.blog.boundry;
 
-import jakarta.ws.rs.GET;
-import jakarta.ws.rs.Path;
-import jakarta.ws.rs.Produces;
+import ch.diamondh3art.blog.control.BlogService;
+import ch.diamondh3art.blog.entity.Blog;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
+import org.jboss.resteasy.reactive.ResponseStatus;
 
-@Path("/blog")
+import java.util.List;
+
+@Path("/blogs")
+@ApplicationScoped
+@Produces(MediaType.APPLICATION_JSON)
 public class BlogResource {
 
+    @Inject
+    BlogService blogService;
+
     @GET
-    @Produces(MediaType.TEXT_PLAIN)
-    public String hello() {
-        return "Willkommen auf meinem Blog!";
+    public List<Blog> getEntries() {
+        return blogService.getBlogs();
     }
+
+    @GET
+    @Path("/{id}")
+    public Blog getEntry(@PathParam("id") Long id) {
+        return blogService.getBlog(id);
+    }
+
+    @POST
+    @ResponseStatus(201)
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Blog addBlog(Blog blog) {
+        return blogService.addBlog(blog);
+    }
+
+    @PATCH
+    @Path("/{id}")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Blog updateBlog(@PathParam("id") Long id, Blog blog) {
+        return blogService.updateBlog(id, blog);
+    }
+
+    @DELETE
+    @Path("/{id}")
+    public void deleteBlog(@PathParam("id") Long id) {
+        blogService.deleteBlog(id);
+    }
+
 }
