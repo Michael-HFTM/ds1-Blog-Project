@@ -8,13 +8,13 @@ import static org.hamcrest.CoreMatchers.is;
 
 @QuarkusTest
 class BlogResourceTest {
-    @Test
-    void testBlogEndpoint() {
-        given()
-          .when().get("/blog")
-          .then()
-             .statusCode(200)
-             .body(is("Willkommen auf meinem Blog!"));
-    }
+//    @Test
+//    void testBlogEndpoint() {
+//        given()
+//          .when().get("/blog")
+//          .then()
+//             .statusCode(200)
+//             .body(is("Willkommen auf meinem Blog!"));
+//    }
 
 }

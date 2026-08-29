@@ -10,12 +10,12 @@ This is a project for the class 'Distributed Systems 1' at HFTM Grenchen.
 
 ---
 
-For now this project only contains the base Quarkus setup.
-The only features implemented are:
-- Add a basic [Endpoint](http://localhost:8080/blog) for the blog resource
+The currently implemented features are:
 - Docker-Compose for local database setup
 - Some blog entities with corresponding repositories, services and tests 
   - DataInitialization.java inserts some initial data into the database
+- Basic CRUD operations for the blog entities
+- Basic REST API for the blog entities (See [Swagger UI](http://localhost:8080/q/swagger-ui ))
 
 
 ---
