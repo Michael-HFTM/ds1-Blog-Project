@@ -9,6 +9,7 @@ import jakarta.ws.rs.core.MediaType;
 import org.jboss.resteasy.reactive.ResponseStatus;
 
 import java.util.List;
+import java.util.Optional;
 
 @Path("/blogs")
 @ApplicationScoped
@@ -19,8 +20,8 @@ public class BlogResource {
     BlogService blogService;
 
     @GET
-    public List<Blog> getEntries() {
-        return blogService.getBlogs();
+    public List<Blog> getEntries(@QueryParam("searchString") Optional<String> searchString) {
+        return blogService.getBlogs(searchString);
     }
 
     @GET

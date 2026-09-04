@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.List;
+import java.util.Optional;
 
 import ch.diamondh3art.blog.control.BlogService;
 import ch.diamondh3art.blog.control.CommentRepository;
@@ -43,11 +44,11 @@ public class BlogServiceTest {
     void listingAndAddingBlogs() {
         // Arrange
         Blog blog = new Blog("Testing Blog", "This is my testing blog");
-        int blogsBefore = blogService.getBlogs().size();
+        int blogsBefore = blogService.getBlogs(Optional.empty()).size();
 
         // Act
         blogService.addBlog(blog);
-        List<Blog> blogs = blogService.getBlogs();
+        List<Blog> blogs = blogService.getBlogs(Optional.empty());
 
         // Assert
         assertEquals(blogsBefore + 1, blogs.size());
