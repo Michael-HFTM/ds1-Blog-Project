@@ -45,8 +45,8 @@ public class BlogResource {
 
     @DELETE
     @Path("/{id}")
-    public void deleteBlog(@PathParam("id") Long id) {
-        blogService.deleteBlog(id);
+    public void deleteBlog(@PathParam("id") Long id, @HeaderParam("secret") String secret) {
+        blogService.deleteBlog(id, secret);
     }
 
 }

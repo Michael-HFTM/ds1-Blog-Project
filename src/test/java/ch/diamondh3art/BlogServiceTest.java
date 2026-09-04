@@ -14,6 +14,7 @@ import ch.diamondh3art.blog.entity.Blog;
 import ch.diamondh3art.blog.entity.Comment;
 import ch.diamondh3art.blog.entity.User;
 import jakarta.ws.rs.NotFoundException;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.junit.jupiter.api.Test;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
@@ -34,6 +35,9 @@ public class BlogServiceTest {
 
     @Inject
     UserService userService;
+
+    @ConfigProperty(name = "blog.delete.secret")
+    String blogSecret;
 
     @Test
     void listingAndAddingBlogs() {
@@ -150,7 +154,7 @@ public class BlogServiceTest {
         Long id = blog.getId();
 
         // Act
-        blogService.deleteBlog(id);
+        blogService.deleteBlog(id, blogSecret);
 
         // Assert
         assertThrows(NotFoundException.class, () -> blogService.getBlog(id));
@@ -166,7 +170,7 @@ public class BlogServiceTest {
         commentService.addComment(new Comment("Second comment", blog, author));
 
         // Act
-        blogService.deleteBlog(blog.getId());
+        blogService.deleteBlog(blog.getId(), blogSecret);
 
         // Assert
         assertEquals(0, commentRepository.count("blog.id", blog.getId()));
@@ -175,6 +179,6 @@ public class BlogServiceTest {
     @Test
     void deletingUnknownBlogThrowsNotFound() {
         // Act & Assert
-        assertThrows(NotFoundException.class, () -> blogService.deleteBlog(UNKNOWN_ID));
+        assertThrows(NotFoundException.class, () -> blogService.deleteBlog(UNKNOWN_ID, blogSecret));
     }
 }

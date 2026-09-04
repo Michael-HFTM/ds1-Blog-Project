@@ -9,6 +9,7 @@ import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.NotFoundException;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 @ApplicationScoped
 public class BlogService {
@@ -16,6 +17,9 @@ public class BlogService {
     BlogRepository blogRepository;
     @Inject
     CommentRepository commentRepository;
+
+    @ConfigProperty(name = "blog.delete.secret")
+    String blogSecret;
 
     public List<Blog> getBlogs() {
         var blogs = blogRepository.listAll();
@@ -66,7 +70,11 @@ public class BlogService {
     }
 
     @Transactional
-    public void deleteBlog(Long id) {
+    public void deleteBlog(Long id, String secret) {
+        if (!blogSecret.equals(secret)) {
+            throw new BadRequestException("Invalid secret");
+        }
+
         commentRepository.delete("blog.id", id);
         if (!blogRepository.deleteById(id)) {
             throw new NotFoundException("Blog with id " + id + " not found");
