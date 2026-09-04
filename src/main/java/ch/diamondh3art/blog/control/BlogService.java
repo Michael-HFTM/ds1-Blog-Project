@@ -1,8 +1,10 @@
 package ch.diamondh3art.blog.control;
 
 import java.util.List;
+import java.util.Optional;
 
 import ch.diamondh3art.blog.entity.Blog;
+import io.quarkus.hibernate.orm.panache.PanacheQuery;
 import io.quarkus.logging.Log;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -21,8 +23,10 @@ public class BlogService {
     @ConfigProperty(name = "blog.delete.secret")
     String blogSecret;
 
-    public List<Blog> getBlogs() {
-        var blogs = blogRepository.listAll();
+    public List<Blog> getBlogs(Optional<String> searchString) {
+        PanacheQuery<Blog> query = blogRepository.search(searchString);
+
+        var blogs = query.list();
         Log.info("Returning " + blogs.size() + " blogs");
         return blogs;
     }
