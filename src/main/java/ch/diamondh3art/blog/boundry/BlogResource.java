@@ -5,8 +5,14 @@ import ch.diamondh3art.blog.entity.Blog;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
-import org.jboss.resteasy.reactive.ResponseStatus;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.UriBuilder;
+import jakarta.ws.rs.core.UriInfo;
+import org.eclipse.microprofile.openapi.annotations.media.Content;
+import org.eclipse.microprofile.openapi.annotations.media.Schema;
+import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 
 import java.util.Optional;
 
@@ -19,37 +25,62 @@ public class BlogResource {
     BlogService blogService;
 
     @GET
-    public PagedResponse<Blog> getEntries(
+    @APIResponse(responseCode = "200", content = @Content(schema = @Schema(implementation = PagedResponse.class)))
+    @APIResponse(responseCode = "400", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    public Response getEntries(
             @QueryParam("searchString") Optional<String> searchString,
             @QueryParam("page") @DefaultValue("0") int page,
             @QueryParam("size") @DefaultValue("20") int size) {
-        return blogService.getBlogs(searchString, page, size);
+        return Response.ok(blogService.getBlogs(searchString, page, size)).build();
     }
 
     @GET
     @Path("/{id}")
-    public Blog getEntry(@PathParam("id") Long id) {
-        return blogService.getBlog(id);
+    @APIResponse(responseCode = "200", content = @Content(schema = @Schema(implementation = Blog.class)))
+    @APIResponse(responseCode = "404", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    public Response getEntry(@PathParam("id") Long id) {
+        return Response.ok(blogService.getBlog(id)).build();
     }
 
     @POST
-    @ResponseStatus(201)
     @Consumes(MediaType.APPLICATION_JSON)
-    public Blog addBlog(Blog blog) {
-        return blogService.addBlog(blog);
+    @APIResponse(responseCode = "201", content = @Content(schema = @Schema(implementation = Blog.class)))
+    @APIResponse(responseCode = "400", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    public Response addBlog(Blog blog, @Context UriInfo uriInfo) {
+        // TODO: replace with Bean Validation once we covered it in class
+        if (blog == null || blog.getTitle() == null || blog.getTitle().isBlank()) {
+            throw ResponseException.badRequest("Request-Body oder Titel fehlt");
+        }
+
+        Blog created = blogService.addBlog(blog);
+
+        // tell the client where the new resource lives
+        UriBuilder location = uriInfo.getAbsolutePathBuilder().path(Long.toString(created.getId()));
+        return Response.created(location.build()).entity(created).build();
     }
 
     @PATCH
     @Path("/{id}")
     @Consumes(MediaType.APPLICATION_JSON)
-    public Blog updateBlog(@PathParam("id") Long id, Blog blog) {
-        return blogService.updateBlog(id, blog);
+    @APIResponse(responseCode = "200", content = @Content(schema = @Schema(implementation = Blog.class)))
+    @APIResponse(responseCode = "400", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    @APIResponse(responseCode = "404", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    public Response updateBlog(@PathParam("id") Long id, Blog blog) {
+        if (blog == null) {
+            throw ResponseException.badRequest("Request-Body fehlt");
+        }
+
+        return Response.ok(blogService.updateBlog(id, blog)).build();
     }
 
     @DELETE
     @Path("/{id}")
-    public void deleteBlog(@PathParam("id") Long id, @HeaderParam("secret") String secret) {
+    @APIResponse(responseCode = "204")
+    @APIResponse(responseCode = "403", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    @APIResponse(responseCode = "404", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    public Response deleteBlog(@PathParam("id") Long id, @HeaderParam("secret") String secret) {
         blogService.deleteBlog(id, secret);
+        return Response.noContent().build();
     }
 
 }

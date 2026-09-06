@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Optional;
 
 import ch.diamondh3art.blog.boundry.PagedResponse;
+import ch.diamondh3art.blog.boundry.ResponseException;
 import ch.diamondh3art.blog.entity.Blog;
 import io.quarkus.hibernate.orm.panache.PanacheQuery;
 import io.quarkus.logging.Log;
@@ -11,8 +12,6 @@ import io.quarkus.panache.common.Page;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
-import jakarta.ws.rs.BadRequestException;
-import jakarta.ws.rs.NotFoundException;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 @ApplicationScoped
@@ -30,10 +29,10 @@ public class BlogService {
 
     public PagedResponse<Blog> getBlogs(Optional<String> searchString, int page, int size) {
         if (page < 0) {
-            throw new BadRequestException("page must not be negative");
+            throw ResponseException.badRequest("page must not be negative");
         }
         if (size < 1 || size > MAX_PAGE_SIZE) {
-            throw new BadRequestException("size must be between 1 and " + MAX_PAGE_SIZE);
+            throw ResponseException.badRequest("size must be between 1 and " + MAX_PAGE_SIZE);
         }
 
         PanacheQuery<Blog> query = blogRepository.search(searchString).page(Page.of(page, size));
@@ -49,15 +48,13 @@ public class BlogService {
     public Blog getBlog(Long id) {
         Blog blog = blogRepository.findById(id);
         if (blog == null) {
-            throw new NotFoundException("Blog with id " + id + " not found");
+            throw ResponseException.notFound("Blog with id " + id + " not found");
         }
         return blog;
     }
 
     @Transactional
     public Blog addBlog(Blog blog) {
-        // TODO: validate blog (we will probably learn this in class)
-
         Log.info("Adding blog: " + blog.getTitle());
         blogRepository.persist(blog);
         return blog;
@@ -65,15 +62,13 @@ public class BlogService {
 
     @Transactional
     public Blog updateBlog(Long targetId, Blog blog) {
-        // TODO: validate blog (we will probably learn this in class)
-
         if (targetId == null) {
-            throw new IllegalArgumentException("id must not be null");
+            throw ResponseException.badRequest("id must not be null");
         }
 
         Blog existingBlog = blogRepository.findById(targetId);
         if (existingBlog == null) {
-            throw new NotFoundException("Blog with id " + targetId + " not found");
+            throw ResponseException.notFound("Blog with id " + targetId + " not found");
         }
 
         if (blog.getTitle() != null) {
@@ -91,12 +86,12 @@ public class BlogService {
     @Transactional
     public void deleteBlog(Long id, String secret) {
         if (!blogSecret.equals(secret)) {
-            throw new BadRequestException("Invalid secret");
+            throw ResponseException.forbidden("Invalid secret");
         }
 
         commentRepository.delete("blog.id", id);
         if (!blogRepository.deleteById(id)) {
-            throw new NotFoundException("Blog with id " + id + " not found");
+            throw ResponseException.notFound("Blog with id " + id + " not found");
         }
     }
 }
