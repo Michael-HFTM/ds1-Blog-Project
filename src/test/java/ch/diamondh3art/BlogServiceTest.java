@@ -9,6 +9,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import ch.diamondh3art.blog.boundry.PagedResponse;
+import ch.diamondh3art.blog.boundry.ResponseException;
 import ch.diamondh3art.blog.control.BlogService;
 import ch.diamondh3art.blog.control.CommentRepository;
 import ch.diamondh3art.blog.control.CommentService;
@@ -16,8 +17,6 @@ import ch.diamondh3art.blog.control.UserService;
 import ch.diamondh3art.blog.entity.Blog;
 import ch.diamondh3art.blog.entity.Comment;
 import ch.diamondh3art.blog.entity.User;
-import jakarta.ws.rs.BadRequestException;
-import jakarta.ws.rs.NotFoundException;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.junit.jupiter.api.Test;
 import io.quarkus.test.junit.QuarkusTest;
@@ -148,9 +147,12 @@ public class BlogServiceTest {
     @Test
     void invalidPagingParametersThrowBadRequest() {
         // Act & Assert
-        assertThrows(BadRequestException.class, () -> blogService.getBlogs(Optional.empty(), -1, 20));
-        assertThrows(BadRequestException.class, () -> blogService.getBlogs(Optional.empty(), 0, 0));
-        assertThrows(BadRequestException.class, () -> blogService.getBlogs(Optional.empty(), 0, 101));
+        assertEquals(400, assertThrows(ResponseException.class,
+                () -> blogService.getBlogs(Optional.empty(), -1, 20)).getResponse().getStatus());
+        assertEquals(400, assertThrows(ResponseException.class,
+                () -> blogService.getBlogs(Optional.empty(), 0, 0)).getResponse().getStatus());
+        assertEquals(400, assertThrows(ResponseException.class,
+                () -> blogService.getBlogs(Optional.empty(), 0, 101)).getResponse().getStatus());
     }
 
     @Test
@@ -181,7 +183,8 @@ public class BlogServiceTest {
     @Test
     void gettingUnknownBlogThrowsNotFound() {
         // Act & Assert
-        assertThrows(NotFoundException.class, () -> blogService.getBlog(UNKNOWN_ID));
+        ResponseException exception = assertThrows(ResponseException.class, () -> blogService.getBlog(UNKNOWN_ID));
+        assertEquals(404, exception.getResponse().getStatus());
     }
 
     @Test
@@ -235,16 +238,20 @@ public class BlogServiceTest {
         Blog patch = new Blog("Does not matter", null);
 
         // Act & Assert
-        assertThrows(NotFoundException.class, () -> blogService.updateBlog(UNKNOWN_ID, patch));
+        ResponseException exception =
+                assertThrows(ResponseException.class, () -> blogService.updateBlog(UNKNOWN_ID, patch));
+        assertEquals(404, exception.getResponse().getStatus());
     }
 
     @Test
-    void updatingWithoutIdThrowsIllegalArgument() {
+    void updatingWithoutIdThrowsBadRequest() {
         // Arrange
         Blog patch = new Blog("Does not matter", null);
 
         // Act & Assert
-        assertThrows(IllegalArgumentException.class, () -> blogService.updateBlog(null, patch));
+        ResponseException exception =
+                assertThrows(ResponseException.class, () -> blogService.updateBlog(null, patch));
+        assertEquals(400, exception.getResponse().getStatus());
     }
 
     @Test
@@ -257,7 +264,8 @@ public class BlogServiceTest {
         blogService.deleteBlog(id, blogSecret);
 
         // Assert
-        assertThrows(NotFoundException.class, () -> blogService.getBlog(id));
+        ResponseException exception = assertThrows(ResponseException.class, () -> blogService.getBlog(id));
+        assertEquals(404, exception.getResponse().getStatus());
     }
 
     @Test
@@ -279,6 +287,22 @@ public class BlogServiceTest {
     @Test
     void deletingUnknownBlogThrowsNotFound() {
         // Act & Assert
-        assertThrows(NotFoundException.class, () -> blogService.deleteBlog(UNKNOWN_ID, blogSecret));
+        ResponseException exception =
+                assertThrows(ResponseException.class, () -> blogService.deleteBlog(UNKNOWN_ID, blogSecret));
+        assertEquals(404, exception.getResponse().getStatus());
+    }
+
+    @Test
+    void deletingWithWrongSecretIsForbidden() {
+        // Arrange
+        Blog blog = blogService.addBlog(new Blog("Protected Blog", "Needs the correct secret"));
+
+        // Act
+        ResponseException exception =
+                assertThrows(ResponseException.class, () -> blogService.deleteBlog(blog.getId(), "wrong-secret"));
+
+        // Assert
+        assertEquals(403, exception.getResponse().getStatus());
+        assertEquals("Protected Blog", blogService.getBlog(blog.getId()).getTitle());
     }
 }
