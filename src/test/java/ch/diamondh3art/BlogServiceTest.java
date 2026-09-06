@@ -233,6 +233,38 @@ public class BlogServiceTest {
     }
 
     @Test
+    void updatingWithBlankTitleIsRejectedAndRolledBack() {
+        // Arrange
+        Blog blog = blogService.addBlog(new Blog("Valid Title", "Valid content"));
+
+        // Act
+        ResponseException exception = assertThrows(ResponseException.class,
+                () -> blogService.updateBlog(blog.getId(), new Blog("   ", null)));
+
+        // Assert
+        assertEquals(400, exception.getResponse().getStatus());
+        assertEquals("Valid Title", blogService.getBlog(blog.getId()).getTitle());
+    }
+
+    @Test
+    void addingBlogWithoutContentIsRejectedWithBadRequest() {
+        // Act: bypasses the resource's @Valid, so the service has to reject it itself
+        ResponseException exception = assertThrows(ResponseException.class,
+                () -> blogService.addBlog(new Blog("Blog ohne Inhalt", null)));
+
+        // Assert: 400, not the 500 that a violation caught on flush would produce
+        assertEquals(400, exception.getResponse().getStatus());
+    }
+
+    @Test
+    void addingBlogWithBlankTitleIsRejectedWithBadRequest() {
+        // Act & Assert
+        ResponseException exception = assertThrows(ResponseException.class,
+                () -> blogService.addBlog(new Blog("   ", "Titel nur Leerzeichen")));
+        assertEquals(400, exception.getResponse().getStatus());
+    }
+
+    @Test
     void updatingUnknownBlogThrowsNotFound() {
         // Arrange
         Blog patch = new Blog("Does not matter", null);

@@ -13,6 +13,7 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.Matchers.emptyOrNullString;
 import static org.hamcrest.Matchers.endsWith;
+import static org.hamcrest.Matchers.hasItem;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @QuarkusTest
@@ -32,10 +33,75 @@ class BlogResourceTest {
                 .when().post("/blogs")
                 .then()
                 .statusCode(400)
-                .header("info", is("Request-Body oder Titel fehlt"))
+                .header("info", is("Validation failed"))
                 .body("status", is(400))
                 .body("error", is("Bad Request"))
-                .body("message", is("Request-Body oder Titel fehlt"));
+                .body("message", is("Validation failed"))
+                .body("violations[0].field", is("title"))
+                .body("violations[0].message", is("Titel darf nicht leer sein."));
+    }
+
+    @Test
+    void postWithBlankTitleReturnsBadRequest() {
+        given()
+                .contentType("application/json")
+                .body("{\"title\":\"   \",\"content\":\"Titel nur Leerzeichen\"}")
+                .when().post("/blogs")
+                .then()
+                .statusCode(400)
+                .body("violations.field", hasItem("title"));
+    }
+
+    @Test
+    void postWithoutContentReturnsBadRequest() {
+        given()
+                .contentType("application/json")
+                .body("{\"title\":\"Blog ohne Inhalt\"}")
+                .when().post("/blogs")
+                .then()
+                .statusCode(400)
+                .body("violations.field", hasItem("content"))
+                .body("violations.message", hasItem("Inhalt darf nicht leer sein."));
+    }
+
+    @Test
+    void patchWithBlankTitleReturnsBadRequestAndKeepsBlog() {
+        // Arrange
+        Blog blog = blogService.addBlog(new Blog("Patch Validation", "Bleibt unveraendert"));
+
+        // Act: same error format as the POST above
+        given()
+                .contentType("application/json")
+                .body("{\"title\":\"   \"}")
+                .when().patch("/blogs/" + blog.getId())
+                .then()
+                .statusCode(400)
+                .header("info", is("Validation failed"))
+                .body("message", is("Validation failed"))
+                .body("violations[0].field", is("title"));
+
+        // Assert: the invalid patch was rolled back
+        given()
+                .when().get("/blogs/" + blog.getId())
+                .then()
+                .statusCode(200)
+                .body("title", is("Patch Validation"));
+    }
+
+    @Test
+    void patchWithOnlyContentStillWorks() {
+        // Arrange
+        Blog blog = blogService.addBlog(new Blog("Partial Patch", "Alter Inhalt"));
+
+        // Act & Assert: a partial body must not trip the title constraint
+        given()
+                .contentType("application/json")
+                .body("{\"content\":\"Neuer Inhalt\"}")
+                .when().patch("/blogs/" + blog.getId())
+                .then()
+                .statusCode(200)
+                .body("title", is("Partial Patch"))
+                .body("content", is("Neuer Inhalt"));
     }
 
     @Test

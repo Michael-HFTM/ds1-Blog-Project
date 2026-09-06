@@ -2,6 +2,7 @@ package ch.diamondh3art.blog.control;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import ch.diamondh3art.blog.boundry.PagedResponse;
 import ch.diamondh3art.blog.boundry.ResponseException;
@@ -12,6 +13,8 @@ import io.quarkus.panache.common.Page;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.Validator;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 @ApplicationScoped
@@ -23,6 +26,8 @@ public class BlogService {
     BlogRepository blogRepository;
     @Inject
     CommentRepository commentRepository;
+    @Inject
+    Validator validator;
 
     @ConfigProperty(name = "blog.delete.secret")
     String blogSecret;
@@ -55,6 +60,10 @@ public class BlogService {
 
     @Transactional
     public Blog addBlog(Blog blog) {
+        // @Valid on the resource already covers requests, but callers that bypass it would
+        // otherwise only fail on flush - and Quarkus maps that to 500 instead of 400
+        validate(blog);
+
         Log.info("Adding blog: " + blog.getTitle());
         blogRepository.persist(blog);
         return blog;
@@ -78,9 +87,25 @@ public class BlogService {
         if (blog.getContent() != null) {
             existingBlog.setContent(blog.getContent());
         }
+
+        // a PATCH body is partial, so only the merged entity can be validated
+        validate(existingBlog);
+
         Log.info("Updating blog: " + existingBlog.getId());
 
         return existingBlog;
+    }
+
+    /**
+     * Rejects an invalid blog with 400 before it reaches the database. Letting Hibernate catch it
+     * on flush would surface as 500, because Bean Validation treats a violation outside of
+     * parameter validation as a server error.
+     */
+    private void validate(Blog blog) {
+        Set<ConstraintViolation<Blog>> violations = validator.validate(blog);
+        if (!violations.isEmpty()) {
+            throw ResponseException.validationFailed(violations);
+        }
     }
 
     @Transactional
