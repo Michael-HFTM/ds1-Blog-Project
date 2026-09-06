@@ -3,9 +3,11 @@ package ch.diamondh3art.blog.control;
 import java.util.List;
 import java.util.Optional;
 
+import ch.diamondh3art.blog.boundry.PagedResponse;
 import ch.diamondh3art.blog.entity.Blog;
 import io.quarkus.hibernate.orm.panache.PanacheQuery;
 import io.quarkus.logging.Log;
+import io.quarkus.panache.common.Page;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
@@ -15,6 +17,9 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 @ApplicationScoped
 public class BlogService {
+
+    private static final int MAX_PAGE_SIZE = 100;
+
     @Inject
     BlogRepository blogRepository;
     @Inject
@@ -23,12 +28,22 @@ public class BlogService {
     @ConfigProperty(name = "blog.delete.secret")
     String blogSecret;
 
-    public List<Blog> getBlogs(Optional<String> searchString) {
-        PanacheQuery<Blog> query = blogRepository.search(searchString);
+    public PagedResponse<Blog> getBlogs(Optional<String> searchString, int page, int size) {
+        if (page < 0) {
+            throw new BadRequestException("page must not be negative");
+        }
+        if (size < 1 || size > MAX_PAGE_SIZE) {
+            throw new BadRequestException("size must be between 1 and " + MAX_PAGE_SIZE);
+        }
 
-        var blogs = query.list();
-        Log.info("Returning " + blogs.size() + " blogs");
-        return blogs;
+        PanacheQuery<Blog> query = blogRepository.search(searchString).page(Page.of(page, size));
+
+        // count() ignores the paging set above, so this is the total over all pages
+        long totalCount = query.count();
+        List<Blog> blogs = query.list();
+        Log.info("Returning " + blogs.size() + " of " + totalCount + " blogs");
+
+        return PagedResponse.of(blogs, totalCount, query.pageCount(), page, size);
     }
 
     public Blog getBlog(Long id) {

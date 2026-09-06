@@ -3,10 +3,12 @@ package ch.diamondh3art;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
+import ch.diamondh3art.blog.boundry.PagedResponse;
 import ch.diamondh3art.blog.control.BlogService;
 import ch.diamondh3art.blog.control.CommentRepository;
 import ch.diamondh3art.blog.control.CommentService;
@@ -14,6 +16,7 @@ import ch.diamondh3art.blog.control.UserService;
 import ch.diamondh3art.blog.entity.Blog;
 import ch.diamondh3art.blog.entity.Comment;
 import ch.diamondh3art.blog.entity.User;
+import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.NotFoundException;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.junit.jupiter.api.Test;
@@ -44,14 +47,110 @@ public class BlogServiceTest {
     void listingAndAddingBlogs() {
         // Arrange
         Blog blog = new Blog("Testing Blog", "This is my testing blog");
-        int blogsBefore = blogService.getBlogs(Optional.empty()).size();
+        long blogsBefore = blogService.getBlogs(Optional.empty(), 0, 20).meta().totalCount();
 
         // Act
         blogService.addBlog(blog);
-        List<Blog> blogs = blogService.getBlogs(Optional.empty());
+        PagedResponse<Blog> blogs = blogService.getBlogs(Optional.empty(), 0, 20);
 
         // Assert
-        assertEquals(blogsBefore + 1, blogs.size());
+        assertEquals(blogsBefore + 1, blogs.meta().totalCount());
+    }
+
+    @Test
+    void pagingReturnsRequestedSlice() {
+        // Arrange
+        for (int i = 0; i < 5; i++) {
+            blogService.addBlog(new Blog("Paged Blog " + i, "Content " + i));
+        }
+
+        // Act
+        PagedResponse<Blog> firstPage = blogService.getBlogs(Optional.empty(), 0, 2);
+        PagedResponse<Blog> secondPage = blogService.getBlogs(Optional.empty(), 1, 2);
+
+        // Assert
+        assertEquals(2, firstPage.data().size());
+        assertEquals(2, firstPage.meta().count());
+        assertEquals(2, secondPage.data().size());
+        assertTrue(firstPage.data().stream().map(Blog::getId).noneMatch(
+                id -> secondPage.data().stream().anyMatch(other -> other.getId().equals(id))));
+    }
+
+    @Test
+    void totalCountIgnoresPaging() {
+        // Arrange
+        for (int i = 0; i < 5; i++) {
+            blogService.addBlog(new Blog("Counted Blog " + i, "Content " + i));
+        }
+
+        // Act
+        PagedResponse<Blog> page = blogService.getBlogs(Optional.empty(), 0, 2);
+
+        // Assert
+        assertTrue(page.meta().totalCount() > page.data().size());
+        assertEquals(Math.ceil(page.meta().totalCount() / 2.0), page.meta().pageCount());
+    }
+
+    @Test
+    void pageBeyondLastPageIsEmptyButKeepsTotalCount() {
+        // Arrange
+        blogService.addBlog(new Blog("Only Blog", "Somewhere on page zero"));
+
+        // Act
+        PagedResponse<Blog> page = blogService.getBlogs(Optional.empty(), 9_999, 20);
+
+        // Assert
+        assertEquals(0, page.data().size());
+        assertTrue(page.meta().totalCount() > 0);
+    }
+
+    @Test
+    void searchStringFiltersAndAffectsTotalCount() {
+        // Arrange
+        String unique = "Unique" + UUID.randomUUID().toString().replace("-", "");
+        blogService.addBlog(new Blog(unique, "Only this blog carries the marker"));
+        blogService.addBlog(new Blog("Unrelated Blog", "No marker here"));
+
+        // Act
+        PagedResponse<Blog> found = blogService.getBlogs(Optional.of(unique), 0, 20);
+
+        // Assert
+        assertEquals(1, found.meta().totalCount());
+        assertEquals(unique, found.data().get(0).getTitle());
+    }
+
+    @Test
+    void searchStringIsCaseInsensitiveAndMatchesContent() {
+        // Arrange
+        String unique = "Marker" + UUID.randomUUID().toString().replace("-", "");
+        blogService.addBlog(new Blog("Blog With Marker In Content", "The marker is " + unique));
+
+        // Act
+        PagedResponse<Blog> found = blogService.getBlogs(Optional.of(unique.toUpperCase()), 0, 20);
+
+        // Assert
+        assertEquals(1, found.meta().totalCount());
+    }
+
+    @Test
+    void blankSearchStringReturnsEverything() {
+        // Arrange
+        blogService.addBlog(new Blog("Blank Search Blog", "Should still be listed"));
+        long total = blogService.getBlogs(Optional.empty(), 0, 20).meta().totalCount();
+
+        // Act
+        PagedResponse<Blog> blogs = blogService.getBlogs(Optional.of("   "), 0, 20);
+
+        // Assert
+        assertEquals(total, blogs.meta().totalCount());
+    }
+
+    @Test
+    void invalidPagingParametersThrowBadRequest() {
+        // Act & Assert
+        assertThrows(BadRequestException.class, () -> blogService.getBlogs(Optional.empty(), -1, 20));
+        assertThrows(BadRequestException.class, () -> blogService.getBlogs(Optional.empty(), 0, 0));
+        assertThrows(BadRequestException.class, () -> blogService.getBlogs(Optional.empty(), 0, 101));
     }
 
     @Test
