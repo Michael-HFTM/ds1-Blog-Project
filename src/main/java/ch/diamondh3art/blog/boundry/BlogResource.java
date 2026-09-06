@@ -4,6 +4,7 @@ import ch.diamondh3art.blog.control.BlogService;
 import ch.diamondh3art.blog.entity.Blog;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import jakarta.validation.Valid;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
@@ -46,10 +47,10 @@ public class BlogResource {
     @Consumes(MediaType.APPLICATION_JSON)
     @APIResponse(responseCode = "201", content = @Content(schema = @Schema(implementation = Blog.class)))
     @APIResponse(responseCode = "400", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
-    public Response addBlog(Blog blog, @Context UriInfo uriInfo) {
-        // TODO: replace with Bean Validation once we covered it in class
-        if (blog == null || blog.getTitle() == null || blog.getTitle().isBlank()) {
-            throw ResponseException.badRequest("Request-Body oder Titel fehlt");
+    public Response addBlog(@Valid Blog blog, @Context UriInfo uriInfo) {
+        // @Valid does not fire on a completely missing body
+        if (blog == null) {
+            throw ResponseException.badRequest("Request-Body fehlt");
         }
 
         Blog created = blogService.addBlog(blog);
