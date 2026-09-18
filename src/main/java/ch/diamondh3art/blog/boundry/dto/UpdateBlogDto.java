@@ -8,15 +8,8 @@ import org.eclipse.microprofile.openapi.annotations.media.Schema;
  * The not-blank rules therefore cannot be checked here - only the merged blog can be validated,
  * which BlogService.updateBlog does.
  */
-@Schema(name = "UpdateBlog", description = "Partial blog update; omitted fields stay unchanged.")
-public record UpdateBlogDto(
-        @Schema(description = "New title, or omitted to keep the current one",
-                nullable = true, examples = {"Neuer Titel"})
-        String title,
-
-        @Schema(description = "New content, or omitted to keep the current one",
-                nullable = true, examples = {"Neuer Inhalt"})
-        String content) {
+@Schema(name = "UpdateBlog")
+public record UpdateBlogDto(String title, String content) {
 
     /** Carrier for the fields that were sent; absent fields stay null. */
     public Blog toBlogPatch() {

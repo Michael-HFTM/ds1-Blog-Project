@@ -2,7 +2,6 @@ package ch.diamondh3art.blog.boundry;
 
 import jakarta.validation.ConstraintViolation;
 import jakarta.ws.rs.core.Response;
-import org.eclipse.microprofile.openapi.annotations.media.Schema;
 
 import java.util.List;
 import java.util.Set;
@@ -11,24 +10,10 @@ import java.util.Set;
  * Body of every error response, so a client can read the reason instead of getting an empty body.
  * {@code violations} is only filled for validation errors and omitted otherwise.
  */
-@Schema(name = "ErrorResponse", description = "Uniform body of every error response.")
-public record ErrorResponse(
-        @Schema(description = "HTTP status code", examples = {"400"})
-        int status,
-        @Schema(description = "Reason phrase of the status code", examples = {"Bad Request"})
-        String error,
-        @Schema(description = "Human readable reason, also sent in the info header",
-                examples = {"Validation failed"})
-        String message,
-        @Schema(description = "Only present for validation errors", nullable = true)
-        List<Violation> violations) {
+public record ErrorResponse(int status, String error, String message, List<Violation> violations) {
 
-    @Schema(name = "Violation", description = "A single failed constraint.")
-    public record Violation(
-            @Schema(description = "Name of the rejected field", examples = {"title"})
-            String field,
-            @Schema(description = "Why it was rejected", examples = {"Titel darf nicht leer sein."})
-            String message) {
+    /** A single failed constraint, e.g. field "title", message "Titel darf nicht leer sein.". */
+    public record Violation(String field, String message) {
     }
 
     public static ErrorResponse of(Response.Status status, String message) {
