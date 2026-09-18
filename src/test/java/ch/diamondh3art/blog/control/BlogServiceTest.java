@@ -1,4 +1,4 @@
-package ch.diamondh3art;
+package ch.diamondh3art.blog.control;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -10,10 +10,6 @@ import java.util.UUID;
 
 import ch.diamondh3art.blog.boundry.PagedResponse;
 import ch.diamondh3art.blog.boundry.ResponseException;
-import ch.diamondh3art.blog.control.BlogService;
-import ch.diamondh3art.blog.control.CommentRepository;
-import ch.diamondh3art.blog.control.CommentService;
-import ch.diamondh3art.blog.control.UserService;
 import ch.diamondh3art.blog.entity.Blog;
 import ch.diamondh3art.blog.entity.Comment;
 import ch.diamondh3art.blog.entity.User;

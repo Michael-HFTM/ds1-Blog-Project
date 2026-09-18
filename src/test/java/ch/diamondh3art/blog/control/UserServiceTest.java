@@ -1,6 +1,5 @@
-package ch.diamondh3art;
+package ch.diamondh3art.blog.control;
 
-import ch.diamondh3art.blog.control.UserService;
 import ch.diamondh3art.blog.entity.User;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
