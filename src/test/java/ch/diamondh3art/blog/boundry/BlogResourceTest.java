@@ -1,4 +1,4 @@
-package ch.diamondh3art;
+package ch.diamondh3art.blog.boundry;
 
 import ch.diamondh3art.blog.control.BlogService;
 import ch.diamondh3art.blog.entity.Blog;
