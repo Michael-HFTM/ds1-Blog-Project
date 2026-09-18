@@ -1,197 +1,353 @@
 package ch.diamondh3art.blog.boundry;
 
-import ch.diamondh3art.blog.control.BlogService;
-import ch.diamondh3art.blog.entity.Blog;
 import io.quarkus.test.junit.QuarkusTest;
-import io.restassured.response.Response;
-import jakarta.inject.Inject;
+import io.restassured.RestAssured;
+import jakarta.json.Json;
+import jakarta.json.JsonArray;
+import jakarta.json.JsonObject;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response.Status;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestMethodOrder;
 
-import static io.restassured.RestAssured.given;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.notNullValue;
+import java.io.StringReader;
+
 import static org.hamcrest.Matchers.emptyOrNullString;
-import static org.hamcrest.Matchers.endsWith;
-import static org.hamcrest.Matchers.hasItem;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+/**
+ * System test of the blog API: everything goes through HTTP and JSON, no service or entity class
+ * is touched. The order only matters for the first two tests, which compare the record count
+ * before and after a POST.
+ */
 @QuarkusTest
+@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class BlogResourceTest {
-
-    @Inject
-    BlogService blogService;
 
     @ConfigProperty(name = "blog.delete.secret")
     String blogSecret;
 
     @Test
-    void postWithoutTitleReturnsBadRequest() {
-        given()
-                .contentType("application/json")
-                .body("{\"content\":\"Titel fehlt\"}")
-                .when().post("/blogs")
+    @Order(1)
+    void createAndReadBlog() {
+        String requestBody = """
+                {
+                    "title": "Testing",
+                    "content": "Testing with Quarkus easy!"
+                }
+                """;
+
+        String location = RestAssured
+                .given()
+                    .body(requestBody)
+                    .contentType(MediaType.APPLICATION_JSON)
+                .when()
+                    .post("/blogs")
                 .then()
-                .statusCode(400)
-                .header("info", is("Validation failed"))
-                .body("status", is(400))
-                .body("error", is("Bad Request"))
-                .body("message", is("Validation failed"))
-                .body("violations[0].field", is("title"))
-                .body("violations[0].message", is("Titel darf nicht leer sein."));
+                    .statusCode(Status.CREATED.getStatusCode())
+                    .extract()
+                    .header("Location");
+
+        String responseBody = RestAssured
+                .when()
+                    .get(location)
+                .then()
+                    .statusCode(Status.OK.getStatusCode())
+                    .extract()
+                    .body()
+                    .asString();
+
+        JsonObject blog = readObject(responseBody);
+
+        assertEquals("Testing", blog.getString("title"));
+        assertEquals("Testing with Quarkus easy!", blog.getString("content"));
+        // the Location header has to point at exactly this record
+        assertTrue(location.endsWith("/blogs/" + blog.getJsonNumber("id").longValue()), location);
     }
 
     @Test
-    void postWithBlankTitleReturnsBadRequest() {
-        given()
-                .contentType("application/json")
-                .body("{\"title\":\"   \",\"content\":\"Titel nur Leerzeichen\"}")
-                .when().post("/blogs")
-                .then()
-                .statusCode(400)
-                .body("violations.field", hasItem("title"));
-    }
+    @Order(2)
+    void createdBlogIsCountedInTheListMetaData() {
+        long before = totalCount();
 
-    @Test
-    void postWithoutContentReturnsBadRequest() {
-        given()
-                .contentType("application/json")
-                .body("{\"title\":\"Blog ohne Inhalt\"}")
-                .when().post("/blogs")
-                .then()
-                .statusCode(400)
-                .body("violations.field", hasItem("content"))
-                .body("violations.message", hasItem("Inhalt darf nicht leer sein."));
-    }
+        String location = createBlog("Zaehlung", "Erhoeht die Anzahl um eins");
 
-    @Test
-    void patchWithBlankTitleReturnsBadRequestAndKeepsBlog() {
-        // Arrange
-        Blog blog = blogService.addBlog(new Blog("Patch Validation", "Bleibt unveraendert"));
+        assertEquals(before + 1, totalCount());
 
-        // Act: same error format as the POST above
-        given()
-                .contentType("application/json")
-                .body("{\"title\":\"   \"}")
-                .when().patch("/blogs/" + blog.getId())
-                .then()
-                .statusCode(400)
-                .header("info", is("Validation failed"))
-                .body("message", is("Validation failed"))
-                .body("violations[0].field", is("title"));
-
-        // Assert: the invalid patch was rolled back
-        given()
-                .when().get("/blogs/" + blog.getId())
-                .then()
-                .statusCode(200)
-                .body("title", is("Patch Validation"));
-    }
-
-    @Test
-    void patchWithOnlyContentStillWorks() {
-        // Arrange
-        Blog blog = blogService.addBlog(new Blog("Partial Patch", "Alter Inhalt"));
-
-        // Act & Assert: a partial body must not trip the title constraint
-        given()
-                .contentType("application/json")
-                .body("{\"content\":\"Neuer Inhalt\"}")
-                .when().patch("/blogs/" + blog.getId())
-                .then()
-                .statusCode(200)
-                .body("title", is("Partial Patch"))
-                .body("content", is("Neuer Inhalt"));
-    }
-
-    @Test
-    void postCreatesBlogAndReturnsLocation() {
-        // Act
-        Response created = given()
-                .contentType("application/json")
-                .body("{\"title\":\"Created Blog\",\"content\":\"Angelegt via REST\"}")
-                .when().post("/blogs")
-                .then()
-                .statusCode(201)
-                .header("Location", notNullValue())
-                .body("id", notNullValue())
-                .extract().response();
-
-        // Assert: the Location header points at the new resource
-        String location = created.getHeader("Location");
-        assertTrue(location.endsWith("/blogs/" + created.jsonPath().getLong("id")));
-
-        given()
-                .when().get(location)
-                .then()
-                .statusCode(200)
-                .body("title", is("Created Blog"));
-    }
-
-    @Test
-    void getUnknownBlogReturnsJsonError() {
-        given()
-                .when().get("/blogs/999999")
-                .then()
-                .statusCode(404)
-                .header("info", endsWith("not found"))
-                .body("status", is(404))
-                .body("error", is("Not Found"))
-                .body("message", is("Blog with id 999999 not found"));
-    }
-
-    @Test
-    void deleteWithWrongSecretReturnsForbidden() {
-        // Arrange
-        Blog blog = blogService.addBlog(new Blog("Delete Forbidden", "Wrong secret"));
-
-        // Act & Assert
-        given()
-                .header("secret", "wrong-secret")
-                .when().delete("/blogs/" + blog.getId())
-                .then()
-                .statusCode(403)
-                .body("message", is("Invalid secret"));
-    }
-
-    @Test
-    void deleteWithCorrectSecretReturnsNoContent() {
-        // Arrange
-        Blog blog = blogService.addBlog(new Blog("Delete Allowed", "Correct secret"));
-
-        // Act & Assert
-        given()
-                .header("secret", blogSecret)
-                .when().delete("/blogs/" + blog.getId())
-                .then()
-                .statusCode(204)
-                .body(is(emptyOrNullString()));
-
-        given()
-                .when().get("/blogs/" + blog.getId())
-                .then()
-                .statusCode(404);
-    }
-
-    @Test
-    void invalidPageSizeReturnsBadRequest() {
-        given()
-                .when().get("/blogs?size=0")
-                .then()
-                .statusCode(400)
-                .body("status", is(400))
-                .body("message", is("size must be between 1 and 100"));
+        JsonObject blog = readObject(getBody(location, Status.OK));
+        assertEquals("Zaehlung", blog.getString("title"));
     }
 
     @Test
     void listReturnsEnvelopeWithMetaData() {
-        given()
-                .when().get("/blogs?page=0&size=1")
+        JsonObject page = readObject(getBody("/blogs?page=0&size=1", Status.OK));
+
+        JsonArray data = page.getJsonArray("data");
+        JsonObject meta = page.getJsonObject("meta");
+
+        assertEquals(1, data.size());
+        assertEquals(1, meta.getInt("size"));
+        assertEquals(0, meta.getInt("page"));
+        assertEquals(data.size(), meta.getInt("count"));
+        assertTrue(meta.getJsonNumber("totalCount").longValue() >= data.size());
+    }
+
+    @Test
+    void invalidPageSizeReturnsBadRequest() {
+        JsonObject error = readObject(getBody("/blogs?size=0", Status.BAD_REQUEST));
+
+        assertEquals(Status.BAD_REQUEST.getStatusCode(), error.getInt("status"));
+        assertEquals("size must be between 1 and 100", error.getString("message"));
+    }
+
+    @Test
+    void getUnknownBlogReturnsJsonError() {
+        String responseBody = RestAssured
+                .when()
+                    .get("/blogs/999999")
                 .then()
-                .statusCode(200)
-                .body("data.size()", is(1))
-                .body("meta.size", is(1))
-                .body("meta.page", is(0))
-                .body("meta.totalCount", notNullValue());
+                    .statusCode(Status.NOT_FOUND.getStatusCode())
+                    .header("info", "Blog with id 999999 not found")
+                    .extract()
+                    .body()
+                    .asString();
+
+        JsonObject error = readObject(responseBody);
+
+        assertEquals(Status.NOT_FOUND.getStatusCode(), error.getInt("status"));
+        assertEquals("Not Found", error.getString("error"));
+        assertEquals("Blog with id 999999 not found", error.getString("message"));
+    }
+
+    @Test
+    void postWithoutTitleReturnsValidationError() {
+        String requestBody = """
+                {
+                    "content": "Titel fehlt"
+                }
+                """;
+
+        JsonObject error = readObject(postExpectingBadRequest(requestBody));
+        JsonObject violation = error.getJsonArray("violations").getJsonObject(0);
+
+        assertEquals("Validation failed", error.getString("message"));
+        assertEquals("title", violation.getString("field"));
+        assertEquals("Titel darf nicht leer sein.", violation.getString("message"));
+    }
+
+    @Test
+    void postWithBlankTitleReturnsValidationError() {
+        String requestBody = """
+                {
+                    "title": "   ",
+                    "content": "Titel nur Leerzeichen"
+                }
+                """;
+
+        JsonObject error = readObject(postExpectingBadRequest(requestBody));
+
+        assertEquals("title", error.getJsonArray("violations").getJsonObject(0).getString("field"));
+    }
+
+    @Test
+    void postWithoutContentReturnsValidationError() {
+        String requestBody = """
+                {
+                    "title": "Blog ohne Inhalt"
+                }
+                """;
+
+        JsonObject violation = readObject(postExpectingBadRequest(requestBody))
+                .getJsonArray("violations")
+                .getJsonObject(0);
+
+        assertEquals("content", violation.getString("field"));
+        assertEquals("Inhalt darf nicht leer sein.", violation.getString("message"));
+    }
+
+    @Test
+    void patchWithOnlyContentKeepsTheTitle() {
+        String location = createBlog("Partial Patch", "Alter Inhalt");
+
+        String requestBody = """
+                {
+                    "content": "Neuer Inhalt"
+                }
+                """;
+
+        String responseBody = RestAssured
+                .given()
+                    .body(requestBody)
+                    .contentType(MediaType.APPLICATION_JSON)
+                .when()
+                    .patch(location)
+                .then()
+                    .statusCode(Status.OK.getStatusCode())
+                    .extract()
+                    .body()
+                    .asString();
+
+        JsonObject patched = readObject(responseBody);
+
+        assertEquals("Partial Patch", patched.getString("title"));
+        assertEquals("Neuer Inhalt", patched.getString("content"));
+    }
+
+    @Test
+    void patchWithBlankTitleIsRejectedAndKeepsTheBlog() {
+        String location = createBlog("Patch Validation", "Bleibt unveraendert");
+
+        String requestBody = """
+                {
+                    "title": "   "
+                }
+                """;
+
+        String responseBody = RestAssured
+                .given()
+                    .body(requestBody)
+                    .contentType(MediaType.APPLICATION_JSON)
+                .when()
+                    .patch(location)
+                .then()
+                    .statusCode(Status.BAD_REQUEST.getStatusCode())
+                    .header("info", "Validation failed")
+                    .extract()
+                    .body()
+                    .asString();
+
+        JsonObject error = readObject(responseBody);
+        assertEquals("title", error.getJsonArray("violations").getJsonObject(0).getString("field"));
+
+        // the rejected patch must not have reached the database
+        JsonObject unchanged = readObject(getBody(location, Status.OK));
+        assertEquals("Patch Validation", unchanged.getString("title"));
+        assertEquals("Bleibt unveraendert", unchanged.getString("content"));
+    }
+
+    @Test
+    void patchOfUnknownBlogReturnsNotFound() {
+        String requestBody = """
+                {
+                    "content": "Gibt es nicht"
+                }
+                """;
+
+        RestAssured
+                .given()
+                    .body(requestBody)
+                    .contentType(MediaType.APPLICATION_JSON)
+                .when()
+                    .patch("/blogs/999999")
+                .then()
+                    .statusCode(Status.NOT_FOUND.getStatusCode());
+    }
+
+    @Test
+    void deleteWithWrongSecretReturnsForbidden() {
+        String location = createBlog("Delete Forbidden", "Wrong secret");
+
+        String responseBody = RestAssured
+                .given()
+                    .header("secret", "wrong-secret")
+                .when()
+                    .delete(location)
+                .then()
+                    .statusCode(Status.FORBIDDEN.getStatusCode())
+                    .extract()
+                    .body()
+                    .asString();
+
+        assertEquals("Invalid secret", readObject(responseBody).getString("message"));
+
+        // the blog survived the rejected delete
+        RestAssured
+                .when()
+                    .get(location)
+                .then()
+                    .statusCode(Status.OK.getStatusCode());
+    }
+
+    @Test
+    void deleteWithCorrectSecretRemovesTheBlog() {
+        String location = createBlog("Delete Allowed", "Correct secret");
+
+        RestAssured
+                .given()
+                    .header("secret", blogSecret)
+                .when()
+                    .delete(location)
+                .then()
+                    .statusCode(Status.NO_CONTENT.getStatusCode())
+                    .body(emptyOrNullString());
+
+        RestAssured
+                .when()
+                    .get(location)
+                .then()
+                    .statusCode(Status.NOT_FOUND.getStatusCode());
+    }
+
+    /** POSTs a blog and returns the Location of the new record. */
+    private String createBlog(String title, String content) {
+        String requestBody = """
+                {
+                    "title": "%s",
+                    "content": "%s"
+                }
+                """.formatted(title, content);
+
+        return RestAssured
+                .given()
+                    .body(requestBody)
+                    .contentType(MediaType.APPLICATION_JSON)
+                .when()
+                    .post("/blogs")
+                .then()
+                    .statusCode(Status.CREATED.getStatusCode())
+                    .extract()
+                    .header("Location");
+    }
+
+    private String postExpectingBadRequest(String requestBody) {
+        return RestAssured
+                .given()
+                    .body(requestBody)
+                    .contentType(MediaType.APPLICATION_JSON)
+                .when()
+                    .post("/blogs")
+                .then()
+                    .statusCode(Status.BAD_REQUEST.getStatusCode())
+                    .header("info", "Validation failed")
+                    .extract()
+                    .body()
+                    .asString();
+    }
+
+    private String getBody(String path, Status expected) {
+        return RestAssured
+                .when()
+                    .get(path)
+                .then()
+                    .statusCode(expected.getStatusCode())
+                    .extract()
+                    .body()
+                    .asString();
+    }
+
+    /** Records across all pages, read from the meta data of the list endpoint. */
+    private long totalCount() {
+        return readObject(getBody("/blogs?size=1", Status.OK))
+                .getJsonObject("meta")
+                .getJsonNumber("totalCount")
+                .longValue();
+    }
+
+    private JsonObject readObject(String json) {
+        return Json.createReader(new StringReader(json)).readObject();
     }
 }
