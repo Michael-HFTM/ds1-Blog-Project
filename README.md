@@ -158,6 +158,27 @@ runs locally only; a deployment would replace it with the concrete frontend orig
 `DELETE` secret is a shared header, not a cookie, so no `access-control-allow-credentials` is
 needed.
 
+## Security (OWASP API Top 10 2023)
+
+The relevant risks for this API and where the project stands. The blog API is anonymous by design
+in this stage of the project, which is why the authorization risks are open rather than solved:
+
+| Risk | State | Notes |
+|------|-------|-------|
+| **API1 - Broken Object Level Authorization** | open | Every endpoint takes a raw `id` and nobody owns a blog, so any caller may read, patch and delete any record. Without a user behind the request there is nothing to check the id against; the fix is an owner on `Blog` plus a check in `BlogService` once authentication exists. |
+| **API2 - Broken Authentication** | open | There is no authentication at all. `DELETE` is guarded by a shared secret from `blog.delete.secret`, which is a speed bump, not an identity: it is committed in plain text, travels in a header over plain HTTP and is compared with `String.equals` (not constant time). |
+| **API3 - Broken Object Property Level Authorization** | covered | The DTOs are the defence here (see [DTOs and mapping](#dtos-and-mapping)). `NewBlogDto`/`UpdateBlogDto` have no `id`, so mass assignment cannot overwrite the key, and `BlogDto` is an explicit whitelist, so a new entity field is not exposed by accident. |
+| **API4 - Unrestricted Resource Consumption** | partly | `size` is rejected outside 1..100, so a single request cannot pull the whole table, and Quarkus caps the request body (`quarkus.http.limits.max-body-size`, 10M by default). Missing is any rate limiting - a loop of `POST /blogs` fills the database unchecked. |
+| **API5 - Broken Function Level Authorization** | partly | Only one destructive function exists and it is the only one behind the secret, so deleting is not open to everyone. But the rule lives inline in `BlogService.deleteBlog` instead of a role, which does not scale to more roles or endpoints - and `PATCH` is writable without any check. |
+| **API6 - Unrestricted Access to Sensitive Business Flows** | partly | Creating blogs is exactly the flow worth automating for spam, and nothing (captcha, quota, account) stands in the way. Same root cause as API4. |
+| **API7 - Server Side Request Forgery** | not applicable | The API never fetches a remote resource from user input. |
+| **API8 - Security Misconfiguration** | partly | Good: `RestExceptionMapper` logs the exception and answers with a generic `500`, so no stack traces leak. Open: `quarkus.http.cors.origins=*`, DB credentials and the delete secret sit in `application.properties` instead of env vars, `schema-management.strategy=drop-and-create` drops the schema on every start, and the API is served over plain HTTP. Acceptable locally, none of it for a deployment. |
+| **API9 - Improper Inventory Management** | covered (small scale) | Five endpoints, all annotated with MicroProfile OpenAPI and documented above and in `/q/openapi`. The Swagger UI is a dev-mode-only endpoint by default, so it is not an exposed debug surface in a build. The paths carry no version yet (`/blogs`, not `/v1/blogs`). |
+| **API10 - Unsafe Consumption of APIs** | not applicable | No third-party API is consumed; the only downstream is the database, and queries go through Panache with bound parameters (`BlogRepository.search`), so the search term cannot be injected. |
+
+Short version: input handling and data exposure are in decent shape, everything that needs an
+identity - object ownership, real authentication, per-caller quotas - is the open construction site.
+
 ## Tests
 
 The services are covered by plain `@QuarkusTest` classes, the REST layer by `BlogResourceTest`,
