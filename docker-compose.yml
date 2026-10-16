@@ -22,7 +22,7 @@ services:
   keycloak:
     image: quay.io/keycloak/keycloak:22.0.1
     container_name: keycloak
-    command: start-dev
+    command: start-dev --import-realm
     environment:
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin
@@ -30,6 +30,9 @@ services:
       KC_HOSTNAME_URL: http://keycloak:8180
     ports:
       - "8180:8180"
+    volumes:
+      - keycloak_data:/opt/keycloak/data
+      - ./src/blog-realm.json:/opt/keycloak/data/import/blog-realm.json
     networks:
       - blog-nw
 
@@ -39,3 +42,4 @@ networks:
 
 volumes:
   mysql_data:
+  keycloak_data:
