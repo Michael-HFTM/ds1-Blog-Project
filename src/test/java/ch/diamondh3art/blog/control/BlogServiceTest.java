@@ -13,7 +13,6 @@ import ch.diamondh3art.blog.boundry.ResponseException;
 import ch.diamondh3art.blog.entity.Blog;
 import ch.diamondh3art.blog.entity.Comment;
 import ch.diamondh3art.blog.entity.User;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.junit.jupiter.api.Test;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
@@ -34,9 +33,6 @@ public class BlogServiceTest {
 
     @Inject
     UserService userService;
-
-    @ConfigProperty(name = "blog.delete.secret")
-    String blogSecret;
 
     @Test
     void listingAndAddingBlogs() {
@@ -289,7 +285,7 @@ public class BlogServiceTest {
         Long id = blog.getId();
 
         // Act
-        blogService.deleteBlog(id, blogSecret);
+        blogService.deleteBlog(id);
 
         // Assert
         ResponseException exception = assertThrows(ResponseException.class, () -> blogService.getBlog(id));
@@ -306,7 +302,7 @@ public class BlogServiceTest {
         commentService.addComment(new Comment("Second comment", blog, author));
 
         // Act
-        blogService.deleteBlog(blog.getId(), blogSecret);
+        blogService.deleteBlog(blog.getId());
 
         // Assert
         assertEquals(0, commentRepository.count("blog.id", blog.getId()));
@@ -316,21 +312,7 @@ public class BlogServiceTest {
     void deletingUnknownBlogThrowsNotFound() {
         // Act & Assert
         ResponseException exception =
-                assertThrows(ResponseException.class, () -> blogService.deleteBlog(UNKNOWN_ID, blogSecret));
+                assertThrows(ResponseException.class, () -> blogService.deleteBlog(UNKNOWN_ID));
         assertEquals(404, exception.getResponse().getStatus());
-    }
-
-    @Test
-    void deletingWithWrongSecretIsForbidden() {
-        // Arrange
-        Blog blog = blogService.addBlog(new Blog("Protected Blog", "Needs the correct secret"));
-
-        // Act
-        ResponseException exception =
-                assertThrows(ResponseException.class, () -> blogService.deleteBlog(blog.getId(), "wrong-secret"));
-
-        // Assert
-        assertEquals(403, exception.getResponse().getStatus());
-        assertEquals("Protected Blog", blogService.getBlog(blog.getId()).getTitle());
     }
 }

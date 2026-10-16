@@ -15,7 +15,6 @@ import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 @ApplicationScoped
 public class BlogService {
@@ -28,9 +27,6 @@ public class BlogService {
     CommentRepository commentRepository;
     @Inject
     Validator validator;
-
-    @ConfigProperty(name = "blog.delete.secret")
-    String blogSecret;
 
     public PagedResponse<Blog> getBlogs(Optional<String> searchString, int page, int size) {
         if (page < 0) {
@@ -109,11 +105,7 @@ public class BlogService {
     }
 
     @Transactional
-    public void deleteBlog(Long id, String secret) {
-        if (!blogSecret.equals(secret)) {
-            throw ResponseException.forbidden("Invalid secret");
-        }
-
+    public void deleteBlog(Long id) {
         commentRepository.delete("blog.id", id);
         if (!blogRepository.deleteById(id)) {
             throw ResponseException.notFound("Blog with id " + id + " not found");

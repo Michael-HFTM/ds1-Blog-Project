@@ -7,7 +7,6 @@ import jakarta.json.JsonArray;
 import jakarta.json.JsonObject;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response.Status;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
@@ -27,9 +26,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @QuarkusTest
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class BlogResourceTest {
-
-    @ConfigProperty(name = "blog.delete.secret")
-    String blogSecret;
 
     @Test
     @Order(1)
@@ -248,37 +244,10 @@ class BlogResourceTest {
     }
 
     @Test
-    void deleteWithWrongSecretReturnsForbidden() {
-        String location = createBlog("Delete Forbidden", "Wrong secret");
-
-        String responseBody = RestAssured
-                .given()
-                    .header("secret", "wrong-secret")
-                .when()
-                    .delete(location)
-                .then()
-                    .statusCode(Status.FORBIDDEN.getStatusCode())
-                    .extract()
-                    .body()
-                    .asString();
-
-        assertEquals("Invalid secret", readObject(responseBody).getString("message"));
-
-        // the blog survived the rejected delete
-        RestAssured
-                .when()
-                    .get(location)
-                .then()
-                    .statusCode(Status.OK.getStatusCode());
-    }
-
-    @Test
-    void deleteWithCorrectSecretRemovesTheBlog() {
-        String location = createBlog("Delete Allowed", "Correct secret");
+    void deletingBlogRemovesIt() {
+        String location = createBlog("Delete Allowed", "Will be deleted");
 
         RestAssured
-                .given()
-                    .header("secret", blogSecret)
                 .when()
                     .delete(location)
                 .then()
