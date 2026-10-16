@@ -16,6 +16,26 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - blog-nw
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:22.0.1
+    container_name: keycloak
+    command: start-dev
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_HTTP_PORT: 8180
+      KC_HOSTNAME_URL: http://keycloak:8180
+    ports:
+      - "8180:8180"
+    networks:
+      - blog-nw
+
+networks:
+  blog-nw:
+    name: blog-nw
 
 volumes:
   mysql_data:
