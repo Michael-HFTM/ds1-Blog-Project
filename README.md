@@ -191,13 +191,12 @@ Reading is anonymous, since a blog is meant to be read by anyone:
 
 | Method | Path          | Public? | Notes                                   |
 |--------|---------------|---------|------------------------------------------|
-| `GET`  | `/blogs`      | yes     | List/search published blogs             |
+| `GET`  | `/blogs`      | yes     | List/search all blogs                   |
 | `GET`  | `/blogs/{id}` | yes     | Read a single blog                      |
 
 ### Roles
 
-Three roles cover the domain; each one is a superset of the one before it in terms of what it is
-additionally allowed to do:
+Three roles cover the domain, ordered from least to most permissions:
 
 | Role     | Meaning                                                                 |
 |----------|--------------------------------------------------------------------------|
@@ -205,8 +204,8 @@ additionally allowed to do:
 | `author` | Can create blogs and edit the blogs they created themselves. Cannot edit or delete other authors' blogs, and cannot delete any blog. |
 | `admin`  | Full access: create/edit/delete any blog regardless of owner. Replaces the shared-secret check that used to guard `DELETE`. |
 
-Roles are not cumulative group memberships but Keycloak realm roles assigned per user, modelled as
-composite roles in `src/blog-realm.json`: `admin` is composite over `author`, so it implies the
+Roles are Keycloak realm roles assigned per user. The hierarchy is not checked in code but
+modelled as composite roles in `src/blog-realm.json`: `admin` is composite over `author`, so it implies the
 permissions of `author` without duplicating checks in code, and `reader` is a composite member of
 `default-roles-blog`, Keycloak's own default role, so every newly registered user gets `reader`
 automatically, no manual role assignment needed.
@@ -267,10 +266,57 @@ docker-compose up -d
 ---
 # Keycloak
 The `keycloak` service in `docker-compose.yml` imports `src/blog-realm.json` on startup
-(`start-dev --import-realm`), so the `blog` realm is ready right after `docker-compose up -d`.
+(`start-dev --import-realm`), so the `blog` realm is ready right after startup, no manual
+configuration in the Admin Console is needed.
+
+## Setup
+
+1. **Hostname entry.** Keycloak announces itself as `http://keycloak:8180` (`KC_HOSTNAME_URL`), so
+   the token issuer (`iss`) is the same whether the token is requested from the host or from another
+   container in `blog-nw`. For the host to resolve that name, add this line to your hosts file
+   (`C:\Windows\System32\drivers\etc\hosts` on Windows, `/etc/hosts` on Linux/macOS):
+
+   ```text
+   127.0.0.1 keycloak
+   ```
+
+2. **Start the container** (from the root folder):
+
+   ```shell script
+   docker-compose up -d keycloak
+   ```
+
+   The first start takes a moment until the realm is imported. The Admin Console is then available
+   at <http://keycloak:8180> (or <http://localhost:8180>), login `admin` / `admin`.
+
 The Keycloak data directory is persisted in the `keycloak_data` volume, so changes made in the
-Admin Console (<http://localhost:8180>) survive a container restart instead of being overwritten
-by the imported file.
+Admin Console survive a container restart. The flip side: `--import-realm` skips a realm that
+already exists, so later edits to `src/blog-realm.json` are **not** picked up automatically. To
+re-import the file, remove the volume first:
+
+```shell script
+docker-compose down
+docker volume rm <project>_keycloak_data   # see `docker volume ls` for the exact name
+docker-compose up -d keycloak
+```
+
+## Realm contents
+
+| Item | Value |
+|------|-------|
+| Realm | `blog` |
+| Realm roles | `reader`, `author`, `admin` (composite over `author`); `reader` is part of `default-roles-blog`, so every user gets it |
+| Client | `backend-service`, confidential, secret `secret!`, *Direct Access Grants* (password grant) enabled |
+
+Test users:
+
+| Username | Password | Assigned role | Roles in the token (`realm_access.roles`) |
+|----------|----------|---------------|---------------------------------------------|
+| `alice`  | `alice`  | `admin`       | `admin`, `author`, `reader`, ...            |
+| `bob`    | `bob`    | `author`      | `author`, `reader`, ...                     |
+
+The `...` are Keycloak's built-in defaults (`offline_access`, `uma_authorization`,
+`default-roles-blog`).
 
 ## Exporting the current configuration
 
@@ -296,9 +342,21 @@ http -v --form --auth backend-service:secret! POST http://keycloak:8180/realms/b
 http -v --form --auth backend-service:secret! POST http://keycloak:8180/realms/blog/protocol/openid-connect/token username=bob password=bob grant_type=password
 ```
 
-Copy the value of the `access_token` field (without quotes) to your clipboard and open the
-debugger at [jwt.io](https://jwt.io) to inspect the decoded header/payload, e.g. to check the
-assigned realm roles.
+Copy the value of the `access_token` field (without quotes) to your clipboard and paste it into
+the debugger at [jwt.io](https://jwt.io). The decoded payload must contain the user's role under
+`realm_access.roles`, e.g. for `bob`:
+
+```json
+{
+  "iss": "http://keycloak:8180/realms/blog",
+  "preferred_username": "bob",
+  "realm_access": {
+    "roles": ["author", "reader", "offline_access", "uma_authorization", "default-roles-blog"]
+  }
+}
+```
+
+If `http` fails with a name resolution error, the hosts entry from [Setup](#setup) is missing.
 
 ---
 # Quarkus 
