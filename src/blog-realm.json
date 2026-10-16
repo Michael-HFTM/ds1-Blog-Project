@@ -446,27 +446,6 @@
     "notBefore" : 0,
     "groups" : [ ]
   }, {
-    "id" : "bdf8c04a-d2c4-40b0-9200-d866ec3bd9e8",
-    "createdTimestamp" : 1792171803003,
-    "username" : "michael-hftm",
-    "enabled" : true,
-    "totp" : false,
-    "emailVerified" : false,
-    "firstName" : "Michael",
-    "lastName" : "Gasser",
-    "email" : "michael.gasser@hftm.ch",
-    "credentials" : [ ],
-    "disableableCredentialTypes" : [ ],
-    "requiredActions" : [ ],
-    "federatedIdentities" : [ {
-      "identityProvider" : "github",
-      "userId" : "194576946",
-      "userName" : "michael-hftm"
-    } ],
-    "realmRoles" : [ "default-roles-blog" ],
-    "notBefore" : 0,
-    "groups" : [ ]
-  }, {
     "id" : "bf090514-cc78-4536-ade1-2ce353a4894a",
     "createdTimestamp" : 1695399950580,
     "username" : "service-account-backend-service",
