@@ -102,13 +102,11 @@ public class BlogResource {
 
     @DELETE
     @Path("/{id}")
-    @Operation(summary = "Delete a blog together with its comments",
-            description = "Requires the shared secret from blog.delete.secret in the secret header.")
+    @Operation(summary = "Delete a blog together with its comments")
     @APIResponse(responseCode = "204", description = "Deleted")
-    @APIResponse(responseCode = "403", ref = ERROR)
     @APIResponse(responseCode = "404", ref = ERROR)
-    public Response deleteBlog(@PathParam("id") Long id, @HeaderParam("secret") String secret) {
-        blogService.deleteBlog(id, secret);
+    public Response deleteBlog(@PathParam("id") Long id) {
+        blogService.deleteBlog(id);
         return Response.noContent().build();
     }
 
