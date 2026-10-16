@@ -205,9 +205,11 @@ additionally allowed to do:
 | `author` | Can create blogs and edit the blogs they created themselves. Cannot edit or delete other authors' blogs, and cannot delete any blog. |
 | `admin`  | Full access: create/edit/delete any blog regardless of owner. Replaces the shared-secret check that used to guard `DELETE`. |
 
-Roles are not cumulative group memberships but Keycloak realm roles assigned per user; `admin`
-implies the permissions of `author`, which is expressed later as a composite role in Keycloak
-rather than by duplicating checks in code.
+Roles are not cumulative group memberships but Keycloak realm roles assigned per user, modelled as
+composite roles in `src/blog-realm.json`: `admin` is composite over `author`, so it implies the
+permissions of `author` without duplicating checks in code, and `reader` is a composite member of
+`default-roles-blog`, Keycloak's own default role, so every newly registered user gets `reader`
+automatically, no manual role assignment needed.
 
 ### Access rules
 

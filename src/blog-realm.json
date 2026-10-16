@@ -47,7 +47,26 @@
     "realm" : [ {
       "id" : "b19922ae-43af-4ce3-84b8-98f570d81721",
       "name" : "admin",
-      "description" : "",
+      "description" : "Full access: create/edit/delete any blog regardless of owner.",
+      "composite" : true,
+      "composites" : {
+        "realm" : [ "author" ]
+      },
+      "clientRole" : false,
+      "containerId" : "919d546e-f1c6-47a2-bb28-322b7b599df7",
+      "attributes" : { }
+    }, {
+      "id" : "c3f7a6b1-3b0a-4a1a-9c8b-6e2f6a0a6b11",
+      "name" : "author",
+      "description" : "Can create blogs and edit the blogs they created themselves.",
+      "composite" : false,
+      "clientRole" : false,
+      "containerId" : "919d546e-f1c6-47a2-bb28-322b7b599df7",
+      "attributes" : { }
+    }, {
+      "id" : "d4a8b7c2-4c1b-4b2b-8d9c-7f3a7b1b7c22",
+      "name" : "reader",
+      "description" : "Default role for every authenticated user, no write access.",
       "composite" : false,
       "clientRole" : false,
       "containerId" : "919d546e-f1c6-47a2-bb28-322b7b599df7",
@@ -61,20 +80,12 @@
       "containerId" : "919d546e-f1c6-47a2-bb28-322b7b599df7",
       "attributes" : { }
     }, {
-      "id" : "9fe2f1fd-83c4-414e-a6cb-12559fe911db",
-      "name" : "user",
-      "description" : "",
-      "composite" : false,
-      "clientRole" : false,
-      "containerId" : "919d546e-f1c6-47a2-bb28-322b7b599df7",
-      "attributes" : { }
-    }, {
       "id" : "7a5e842d-4577-4961-a25c-e8248ad700e0",
       "name" : "default-roles-blog",
       "description" : "${role_default-roles}",
       "composite" : true,
       "composites" : {
-        "realm" : [ "offline_access", "uma_authorization" ],
+        "realm" : [ "offline_access", "uma_authorization", "reader" ],
         "client" : {
           "account" : [ "manage-account", "view-profile" ]
         }
@@ -409,7 +420,7 @@
     } ],
     "disableableCredentialTypes" : [ ],
     "requiredActions" : [ ],
-    "realmRoles" : [ "admin", "user", "default-roles-blog" ],
+    "realmRoles" : [ "admin", "default-roles-blog" ],
     "notBefore" : 0,
     "groups" : [ ]
   }, {
@@ -431,7 +442,7 @@
     } ],
     "disableableCredentialTypes" : [ ],
     "requiredActions" : [ ],
-    "realmRoles" : [ "default-roles-blog" ],
+    "realmRoles" : [ "author", "default-roles-blog" ],
     "notBefore" : 0,
     "groups" : [ ]
   }, {
