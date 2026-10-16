@@ -286,6 +286,20 @@ docker cp keycloak:/tmp/export/blog-realm.json ./src/blog-realm.json
 The export briefly stops and restarts the embedded Keycloak server, so expect a short
 unavailability while the command runs. Review the resulting diff before committing.
 
+## Testing access tokens
+
+Use [HTTPie](https://httpie.io/) to request an access token for one of the imported test users via
+the password grant, authenticating as the `backend-service` client:
+
+```shell script
+http -v --form --auth backend-service:secret! POST http://keycloak:8180/realms/blog/protocol/openid-connect/token username=alice password=alice grant_type=password
+http -v --form --auth backend-service:secret! POST http://keycloak:8180/realms/blog/protocol/openid-connect/token username=bob password=bob grant_type=password
+```
+
+Copy the value of the `access_token` field (without quotes) to your clipboard and open the
+debugger at [jwt.io](https://jwt.io) to inspect the decoded header/payload, e.g. to check the
+assigned realm roles.
+
 ---
 # Quarkus 
 
