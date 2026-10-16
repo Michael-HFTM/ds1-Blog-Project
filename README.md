@@ -217,6 +217,28 @@ docker-compose up -d
 ```
 
 ---
+# Keycloak
+The `keycloak` service in `docker-compose.yml` imports `src/blog-realm.json` on startup
+(`start-dev --import-realm`), so the `blog` realm is ready right after `docker-compose up -d`.
+The Keycloak data directory is persisted in the `keycloak_data` volume, so changes made in the
+Admin Console (<http://localhost:8180>) survive a container restart instead of being overwritten
+by the imported file.
+
+## Exporting the current configuration
+
+If you changed the realm (clients, roles, users, ...) via the Admin Console and want to persist
+those changes back into `src/blog-realm.json` for version control, export the realm from the
+running container and copy the result out:
+
+```shell script
+docker exec -u root -it keycloak /opt/keycloak/bin/kc.sh export --dir /tmp/export --users realm_file
+docker cp keycloak:/tmp/export/blog-realm.json ./src/blog-realm.json
+```
+
+The export briefly stops and restarts the embedded Keycloak server, so expect a short
+unavailability while the command runs. Review the resulting diff before committing.
+
+---
 # Quarkus 
 
 This project uses Quarkus, the Supersonic Subatomic Java Framework.
