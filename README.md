@@ -179,6 +179,52 @@ in this stage of the project, which is why the authorization risks are open rath
 Short version: input handling and data exposure are in decent shape, everything that needs an
 identity - object ownership, real authentication, per-caller quotas - is the open construction site.
 
+## Authorization concept
+
+This is the concept that closes the gaps from API1/API2/API5 above. It describes the target
+state only - nothing here is enforced in code yet. The next unit implements it with Keycloak/OIDC
+and `@RolesAllowed` on `BlogResource`.
+
+### Public endpoints (no login required)
+
+Reading is anonymous, since a blog is meant to be read by anyone:
+
+| Method | Path          | Public? | Notes                                   |
+|--------|---------------|---------|------------------------------------------|
+| `GET`  | `/blogs`      | yes     | List/search published blogs             |
+| `GET`  | `/blogs/{id}` | yes     | Read a single blog                      |
+
+### Roles
+
+Three roles cover the domain; each one is a superset of the one before it in terms of what it is
+additionally allowed to do:
+
+| Role     | Meaning                                                                 |
+|----------|--------------------------------------------------------------------------|
+| `reader` | Default role for every authenticated user. No write access, only used so that future features (e.g. commenting, favorites) have an identity to attach to. Not required for the read endpoints above, which stay public even without this role. |
+| `author` | Can create blogs and edit the blogs they created themselves. Cannot edit or delete other authors' blogs, and cannot delete any blog. |
+| `admin`  | Full access: create/edit/delete any blog regardless of owner, independent of the `blog.delete.secret` mechanism that exists today. |
+
+Roles are not cumulative group memberships but Keycloak realm roles assigned per user; `admin`
+implies the permissions of `author`, which is expressed later as a composite role in Keycloak
+rather than by duplicating checks in code.
+
+### Access rules
+
+| Method   | Path          | Required role          | Rule                                                               |
+|----------|---------------|-------------------------|---------------------------------------------------------------------|
+| `GET`    | `/blogs`      | none (public)           | –                                                                     |
+| `GET`    | `/blogs/{id}` | none (public)           | –                                                                     |
+| `POST`   | `/blogs`      | `author` or `admin`     | Login required; the creating user becomes the blog's owner.          |
+| `PATCH`  | `/blogs/{id}` | `author` or `admin`     | `author` only on a blog they own (API1 fix: ownership check in `BlogService`); `admin` on any blog. |
+| `DELETE` | `/blogs/{id}` | `admin`                 | Replaces the shared-secret header entirely; only `admin` may delete. |
+
+Implementation note for the next unit: `@RolesAllowed({"author", "admin"})` on `addBlog`/`updateBlog`
+and `@RolesAllowed("admin")` on `deleteBlog` cover the role check; the *ownership* part of the
+`PATCH` rule (an `author` may only edit their own blog) still needs an explicit comparison between
+the blog's owner and the authenticated principal (`SecurityContext`/`JsonWebToken`) inside
+`BlogService`, since `@RolesAllowed` alone cannot express "own records only".
+
 ## Tests
 
 The services are covered by plain `@QuarkusTest` classes, the REST layer by `BlogResourceTest`,
