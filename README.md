@@ -24,6 +24,27 @@ The currently implemented features are:
 
 
 ---
+# Getting started
+
+Run these steps from the root folder to test the auth setup:
+
+1. **Add the hosts entry** once, see [Keycloak setup](#setup).
+2. **Start the database and Keycloak:**
+
+   ```shell script
+   docker-compose up -d
+   ```
+
+3. **Start the application** once Keycloak has imported the realm, which takes a moment on the first start:
+
+   ```shell script
+   ./mvnw quarkus:dev
+   ```
+
+The API now runs on <http://localhost:8080>. The test users are listed in
+[Realm contents](#realm-contents), example calls are in [Calling the API](#calling-the-api).
+
+---
 # REST API
 
 All endpoints live under `/blogs`, consume and produce `application/json`, and are implemented in `BlogResource`.<br>
@@ -364,6 +385,45 @@ the debugger at [jwt.io](https://jwt.io). The decoded payload must contain the u
 ```
 
 If `http` fails with a name resolution error, the hosts entry from [Setup](#setup) is missing.
+
+## Calling the API
+
+These [HTTPie](https://httpie.io/) calls need the running application. Request a token for `bob` and
+`alice` as shown in [Testing access tokens](#testing-access-tokens) and store each `access_token`
+in a variable, repeat this step once a token has expired:
+
+```shell script
+BOB=<access_token of bob>
+ALICE=<access_token of alice>
+```
+
+Each call below shows the expected status. Replace `<id>` with the `id` from the `POST` response:
+
+```shell script
+# reading is public: 200
+http :8080/blogs
+
+# writing without a token: 401
+http POST :8080/blogs title=Hallo content=Welt
+
+# author creates a blog and becomes its owner: 201
+http -A bearer -a "$BOB" POST :8080/blogs title=Hallo content=Welt
+
+# author edits their own blog: 200
+http -A bearer -a "$BOB" PATCH :8080/blogs/<id> content='Neuer Inhalt'
+
+# author edits a blog of someone else (blog 2 belongs to alice): 403
+http -A bearer -a "$BOB" PATCH :8080/blogs/2 content=Gekapert
+
+# author must not delete, not even their own blog: 403
+http -A bearer -a "$BOB" DELETE :8080/blogs/<id>
+
+# admin edits any blog: 200
+http -A bearer -a "$ALICE" PATCH :8080/blogs/<id> content='Vom Admin'
+
+# admin deletes any blog: 204
+http -A bearer -a "$ALICE" DELETE :8080/blogs/<id>
+```
 
 ---
 # Quarkus 
