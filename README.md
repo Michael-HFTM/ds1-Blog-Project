@@ -106,9 +106,9 @@ Location: http://localhost:8080/blogs/7
 
 ## Deleting a blog
 
-`DELETE /blogs/{id}` removes the blog and its comments. There is no authorization check yet - see
-[Authorization concept](#authorization-concept) below for the planned `admin`-only rule, which
-replaces the shared-secret mechanism that used to guard this endpoint.
+`DELETE /blogs/{id}` removes the blog and its comments. Only `admin` may call it, see
+[Authorization concept](#authorization-concept) below; this replaces the shared-secret mechanism
+that used to guard this endpoint.
 
 ## Validation
 
@@ -135,12 +135,16 @@ The message is repeated in an `info` header. `violations` is only present for va
 | Status | When                                                                      |
 |--------|---------------------------------------------------------------------------|
 | `400`  | Failed validation, missing request body, `page`/`size` out of range, malformed JSON |
+| `401`  | Write endpoint called without a login                                      |
+| `403`  | Logged in, but the required role is missing                                |
 | `404`  | No blog with the given id                                                  |
 | `500`  | Unexpected server error (logged, no internal details in the body)          |
 
-Errors are produced by `ResponseException`, which carries the whole response, and by two mappers:<br>
-`ValidationExceptionMapper` for `@Valid` failures and `RestExceptionMapper` as a safety net for
-everything raised outside our own code.
+Errors are produced by `ResponseException`, which carries the whole response, and by three mappers:<br>
+`ValidationExceptionMapper` for `@Valid` failures, `SecurityExceptionMappers` for failed role checks
+and `RestExceptionMapper` as a safety net for everything raised outside our own code.<br>
+One exception: an invalid or expired token is rejected by Quarkus before the REST layer, so that
+`401` has an empty body, and it also hits the public `GET` endpoints.
 
 ## CORS
 
@@ -160,30 +164,30 @@ once OIDC tokens are sent as a `Bearer` header rather than a cookie, no
 
 ## Security (OWASP API Top 10 2023)
 
-The relevant risks for this API and where the project stands. The blog API is anonymous by design
-in this stage of the project, which is why the authorization risks are open rather than solved:
+The relevant risks for this API and where the project stands. Reading is anonymous by design, write
+access is restricted by role, and per-blog ownership is still open:
 
 | Risk | State | Notes |
 |------|-------|-------|
-| **API1 - Broken Object Level Authorization** | open | Every endpoint takes a raw `id` and nobody owns a blog, so any caller may read, patch and delete any record. Without a user behind the request there is nothing to check the id against; the fix is an owner on `Blog` plus a check in `BlogService` once authentication exists (see [Authorization concept](#authorization-concept)). |
-| **API2 - Broken Authentication** | open | There is no authentication at all, every endpoint including `DELETE` is wide open. The next unit adds Keycloak/OIDC and `@RolesAllowed` per the [authorization concept](#authorization-concept) below. |
+| **API1 - Broken Object Level Authorization** | open | Every endpoint takes a raw `id` and nobody owns a blog yet, so any `author` may patch any record. The fix is an owner on `Blog` plus a check in `BlogService` (see [Authorization concept](#authorization-concept)). |
+| **API2 - Broken Authentication** | covered | Write endpoints require a Keycloak/OIDC bearer token. |
 | **API3 - Broken Object Property Level Authorization** | covered | The DTOs are the defence here (see [DTOs and mapping](#dtos-and-mapping)). `NewBlogDto`/`UpdateBlogDto` have no `id`, so mass assignment cannot overwrite the key, and `BlogDto` is an explicit whitelist, so a new entity field is not exposed by accident. |
 | **API4 - Unrestricted Resource Consumption** | partly | `size` is rejected outside 1..100, so a single request cannot pull the whole table, and Quarkus caps the request body (`quarkus.http.limits.max-body-size`, 10M by default). Missing is any rate limiting - a loop of `POST /blogs` fills the database unchecked. |
-| **API5 - Broken Function Level Authorization** | open | No function (create, patch, delete) is restricted at all right now; the [authorization concept](#authorization-concept) below defines the `reader`/`author`/`admin` roles that close this gap in the next unit. |
+| **API5 - Broken Function Level Authorization** | covered | Create, patch and delete are restricted with `@RolesAllowed` per the [authorization concept](#authorization-concept) below. |
 | **API6 - Unrestricted Access to Sensitive Business Flows** | partly | Creating blogs is exactly the flow worth automating for spam, and nothing (captcha, quota, account) stands in the way. Same root cause as API4. |
 | **API7 - Server Side Request Forgery** | not applicable | The API never fetches a remote resource from user input. |
 | **API8 - Security Misconfiguration** | partly | Good: `RestExceptionMapper` logs the exception and answers with a generic `500`, so no stack traces leak. Open: `quarkus.http.cors.origins=*`, DB credentials sit in `application.properties` instead of env vars, `schema-management.strategy=drop-and-create` drops the schema on every start, and the API is served over plain HTTP. Acceptable locally, none of it for a deployment. |
 | **API9 - Improper Inventory Management** | covered (small scale) | Five endpoints, all annotated with MicroProfile OpenAPI and documented above and in `/q/openapi`. The Swagger UI is a dev-mode-only endpoint by default, so it is not an exposed debug surface in a build. The paths carry no version yet (`/blogs`, not `/v1/blogs`). |
 | **API10 - Unsafe Consumption of APIs** | not applicable | No third-party API is consumed; the only downstream is the database, and queries go through Panache with bound parameters (`BlogRepository.search`), so the search term cannot be injected. |
 
-Short version: input handling and data exposure are in decent shape, everything that needs an
-identity - object ownership, real authentication, per-caller quotas - is the open construction site.
+Short version: input handling, data exposure and role checks are in decent shape, object ownership
+and per-caller quotas are the open construction site.
 
 ## Authorization concept
 
-This is the concept that closes the gaps from API1/API2/API5 above. It describes the target
-state only - nothing here is enforced in code yet. The next unit implements it with Keycloak/OIDC
-and `@RolesAllowed` on `BlogResource`.
+This is the concept that closes the gaps from API1/API2/API5 above. The role checks are enforced
+with Keycloak/OIDC and `@RolesAllowed` on `BlogResource`; blog ownership is not implemented yet, so
+for now any `author` may edit any blog.
 
 ### Public endpoints (no login required)
 
@@ -220,9 +224,11 @@ automatically, no manual role assignment needed.
 | `PATCH`  | `/blogs/{id}` | `author` or `admin`     | `author` only on a blog they own (API1 fix: ownership check in `BlogService`); `admin` on any blog. |
 | `DELETE` | `/blogs/{id}` | `admin`                 | Replaces the shared-secret header entirely; only `admin` may delete. |
 
-Implementation note for the next unit: `@RolesAllowed({"author", "admin"})` on `addBlog`/`updateBlog`
-and `@RolesAllowed("admin")` on `deleteBlog` cover the role check; the *ownership* part of the
-`PATCH` rule (an `author` may only edit their own blog) still needs an explicit comparison between
+Implementation note: `BlogResource` is `@DenyAll`, so a new endpoint is closed until it is released
+explicitly. `@PermitAll` on the two `GET` methods, `@RolesAllowed({"author", "admin"})` on
+`addBlog`/`updateBlog` and `@RolesAllowed("admin")` on `deleteBlog` cover the role check; the
+*ownership* part of the `PATCH`
+rule (an `author` may only edit their own blog) still needs an explicit comparison between
 the blog's owner and the authenticated principal (`SecurityContext`/`JsonWebToken`) inside
 `BlogService`, since `@RolesAllowed` alone cannot express "own records only".
 
@@ -247,7 +253,8 @@ RestAssured
 
 `@QuarkusTest` starts the application once and Quarkus points REST Assured at the test port (8081),
 so no base URI has to be configured. Covered are the CRUD happy paths, validation errors, paging and
-search meta data and the `Location` header.
+search meta data, the `Location` header and the role rules. `@TestSecurity` (`quarkus-test-security`)
+sets the caller per test, so the role tests need no token.
 
 Run them against the local database (`docker-compose up -d`):
 

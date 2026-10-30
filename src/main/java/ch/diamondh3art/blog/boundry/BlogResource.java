@@ -5,6 +5,9 @@ import ch.diamondh3art.blog.boundry.dto.NewBlogDto;
 import ch.diamondh3art.blog.boundry.dto.UpdateBlogDto;
 import ch.diamondh3art.blog.control.BlogService;
 import ch.diamondh3art.blog.entity.Blog;
+import jakarta.annotation.security.DenyAll;
+import jakarta.annotation.security.PermitAll;
+import jakarta.annotation.security.RolesAllowed;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
@@ -28,6 +31,7 @@ import java.util.Optional;
 @ApplicationScoped
 @Produces(MediaType.APPLICATION_JSON)
 @Tag(name = "Blogs")
+@DenyAll
 public class BlogResource {
 
     /** Every error response carries this body, so the mappings are annotated once here. */
@@ -45,6 +49,7 @@ public class BlogResource {
                     @SchemaProperty(name = "meta", implementation = PagedResponse.PageMeta.class)
             })))
     @APIResponse(responseCode = "400", ref = ERROR)
+    @PermitAll
     public Response getEntries(
             @QueryParam("searchString") Optional<String> searchString,
             @QueryParam("page") @DefaultValue("0") int page,
@@ -58,6 +63,7 @@ public class BlogResource {
     @Operation(summary = "Get a single blog")
     @APIResponse(responseCode = "200", content = @Content(schema = @Schema(implementation = BlogDto.class)))
     @APIResponse(responseCode = "404", ref = ERROR)
+    @PermitAll
     public Response getEntry(@PathParam("id") Long id) {
         return Response.ok(BlogDto.from(blogService.getBlog(id))).build();
     }
@@ -68,6 +74,9 @@ public class BlogResource {
     @APIResponse(responseCode = "201", description = "Location header points at the new blog",
             content = @Content(schema = @Schema(implementation = BlogDto.class)))
     @APIResponse(responseCode = "400", ref = ERROR)
+    @APIResponse(responseCode = "401", ref = ERROR)
+    @APIResponse(responseCode = "403", ref = ERROR)
+    @RolesAllowed({"author", "admin"})
     public Response addBlog(@Valid NewBlogDto newBlogDto, @Context UriInfo uriInfo) {
         // @Valid does not fire on a completely missing body
         if (newBlogDto == null) {
@@ -90,7 +99,10 @@ public class BlogResource {
                     + "rejected and the stored blog stays untouched.")
     @APIResponse(responseCode = "200", content = @Content(schema = @Schema(implementation = BlogDto.class)))
     @APIResponse(responseCode = "400", ref = ERROR)
+    @APIResponse(responseCode = "401", ref = ERROR)
+    @APIResponse(responseCode = "403", ref = ERROR)
     @APIResponse(responseCode = "404", ref = ERROR)
+    @RolesAllowed({"author", "admin"})
     public Response updateBlog(@PathParam("id") Long id, @Valid UpdateBlogDto updateBlogDto) {
         if (updateBlogDto == null) {
             throw ResponseException.badRequest("Request-Body fehlt");
@@ -104,7 +116,10 @@ public class BlogResource {
     @Path("/{id}")
     @Operation(summary = "Delete a blog together with its comments")
     @APIResponse(responseCode = "204", description = "Deleted")
+    @APIResponse(responseCode = "401", ref = ERROR)
+    @APIResponse(responseCode = "403", ref = ERROR)
     @APIResponse(responseCode = "404", ref = ERROR)
+    @RolesAllowed("admin")
     public Response deleteBlog(@PathParam("id") Long id) {
         blogService.deleteBlog(id);
         return Response.noContent().build();
