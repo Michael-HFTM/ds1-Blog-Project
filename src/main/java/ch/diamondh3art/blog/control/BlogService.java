@@ -54,6 +54,10 @@ public class BlogService {
         return blog;
     }
 
+    public boolean isAuthor(Long id, String username) {
+        return username.equals(getBlog(id).getAuthor());
+    }
+
     @Transactional
     public Blog addBlog(Blog blog) {
         // @Valid on the resource already covers requests, but callers that bypass it would

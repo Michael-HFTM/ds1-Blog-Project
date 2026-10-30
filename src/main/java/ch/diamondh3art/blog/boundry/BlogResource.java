@@ -5,6 +5,7 @@ import ch.diamondh3art.blog.boundry.dto.NewBlogDto;
 import ch.diamondh3art.blog.boundry.dto.UpdateBlogDto;
 import ch.diamondh3art.blog.control.BlogService;
 import ch.diamondh3art.blog.entity.Blog;
+import io.quarkus.security.identity.SecurityIdentity;
 import jakarta.annotation.security.DenyAll;
 import jakarta.annotation.security.PermitAll;
 import jakarta.annotation.security.RolesAllowed;
@@ -39,6 +40,9 @@ public class BlogResource {
 
     @Inject
     BlogService blogService;
+
+    @Inject
+    SecurityIdentity securityIdentity;
 
     @GET
     @Operation(summary = "List blogs, optionally filtered by searchString")
@@ -83,7 +87,9 @@ public class BlogResource {
             throw ResponseException.badRequest("Request-Body fehlt");
         }
 
-        Blog created = blogService.addBlog(newBlogDto.toBlog());
+        Blog blog = newBlogDto.toBlog();
+        blog.setAuthor(securityIdentity.getPrincipal().getName());
+        Blog created = blogService.addBlog(blog);
 
         // tell the client where the new resource lives
         UriBuilder location = uriInfo.getAbsolutePathBuilder().path(Long.toString(created.getId()));
@@ -106,6 +112,12 @@ public class BlogResource {
     public Response updateBlog(@PathParam("id") Long id, @Valid UpdateBlogDto updateBlogDto) {
         if (updateBlogDto == null) {
             throw ResponseException.badRequest("Request-Body fehlt");
+        }
+
+        // @RolesAllowed cannot express "own blogs only"
+        String username = securityIdentity.getPrincipal().getName();
+        if (!securityIdentity.hasRole("admin") && !blogService.isAuthor(id, username)) {
+            throw ResponseException.forbidden("Du darfst nur deine eigenen Blogs bearbeiten");
         }
 
         return Response.ok(BlogDto.from(blogService.updateBlog(id, updateBlogDto.toBlogPatch())))
