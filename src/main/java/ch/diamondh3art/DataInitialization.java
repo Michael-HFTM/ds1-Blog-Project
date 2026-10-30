@@ -33,6 +33,8 @@ public class DataInitialization {
 
             Blog blog1 = new Blog("How i was granted the rank of Jedi master.", "So basically, I was granted the rank of Jedi master because i'm a gigachad.");
             Blog blog2 = new Blog("I was denied the title of Jedi Master.", "They say im not ready. But i'm the chosen one!");
+            blog1.setAuthor("bob");
+            blog2.setAuthor("alice");
             blogRepository.persist(blog1);
             blogRepository.persist(blog2);
 

@@ -1,8 +1,11 @@
 package ch.diamondh3art.blog.boundry;
 
+import ch.diamondh3art.blog.control.BlogService;
+import ch.diamondh3art.blog.entity.Blog;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.security.TestSecurity;
 import io.restassured.RestAssured;
+import jakarta.inject.Inject;
 import jakarta.json.Json;
 import jakarta.json.JsonArray;
 import jakarta.json.JsonObject;
@@ -24,11 +27,34 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * System test of the blog API: everything goes through HTTP and JSON, no service or entity class
  * is touched. The order only matters for the first two tests, which compare the record count
  * before and after a POST. Runs as admin unless a test says otherwise, so no Keycloak is needed.
+ * Only {@link #foreignBlog} uses the service, because a blog of another user cannot be created
+ * while a test runs as a single user.
  */
 @QuarkusTest
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 @TestSecurity(user = "alice", roles = {"admin", "author", "reader"})
 class BlogResourceTest {
+
+    @Inject
+    BlogService blogService;
+
+    @Test
+    @TestSecurity(user = "bob", roles = {"author", "reader"})
+    void authorCannotPatchForeignOrOwnerlessBlog() {
+        patchExpecting(foreignBlog("alice"), Status.FORBIDDEN);
+        patchExpecting(foreignBlog(null), Status.FORBIDDEN);
+    }
+
+    @Test
+    void adminCanPatchForeignBlog() {
+        patchExpecting(foreignBlog("bob"), Status.OK);
+    }
+
+    @Test
+    @TestSecurity(user = "bob", roles = {"author", "reader"})
+    void authorPatchingUnknownBlogGetsNotFound() {
+        patchExpecting("/blogs/999999", Status.NOT_FOUND);
+    }
 
     @Test
     @TestSecurity
@@ -333,6 +359,23 @@ class BlogResourceTest {
                     .get(location)
                 .then()
                     .statusCode(Status.NOT_FOUND.getStatusCode());
+    }
+
+    private String foreignBlog(String author) {
+        Blog blog = new Blog("Fremder Blog", "Gehoert jemand anderem");
+        blog.setAuthor(author);
+        return "/blogs/" + blogService.addBlog(blog).getId();
+    }
+
+    private void patchExpecting(String path, Status expected) {
+        RestAssured
+                .given()
+                    .body("{\"content\": \"Neu\"}")
+                    .contentType(MediaType.APPLICATION_JSON)
+                .when()
+                    .patch(path)
+                .then()
+                    .statusCode(expected.getStatusCode());
     }
 
     /** POSTs a blog and returns the Location of the new record. */

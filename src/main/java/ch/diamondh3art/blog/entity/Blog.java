@@ -19,6 +19,9 @@ public class Blog {
     @NotBlank(message = "Inhalt darf nicht leer sein.")
     private String content;
 
+    // username of the creator; null means no owner, so only an admin can edit the blog
+    private String author;
+
     public Blog() {
     }
 
@@ -49,5 +52,13 @@ public class Blog {
 
     public void setContent(String content) {
         this.content = content;
+    }
+
+    public String getAuthor() {
+        return author;
+    }
+
+    public void setAuthor(String author) {
+        this.author = author;
     }
 }
