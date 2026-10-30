@@ -1,6 +1,7 @@
 package ch.diamondh3art.blog.boundry;
 
 import io.quarkus.test.junit.QuarkusTest;
+import io.quarkus.test.security.TestSecurity;
 import io.restassured.RestAssured;
 import jakarta.json.Json;
 import jakarta.json.JsonArray;
@@ -15,17 +16,90 @@ import org.junit.jupiter.api.TestMethodOrder;
 import java.io.StringReader;
 
 import static org.hamcrest.Matchers.emptyOrNullString;
+import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * System test of the blog API: everything goes through HTTP and JSON, no service or entity class
  * is touched. The order only matters for the first two tests, which compare the record count
- * before and after a POST.
+ * before and after a POST. Runs as admin unless a test says otherwise, so no Keycloak is needed.
  */
 @QuarkusTest
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
+@TestSecurity(user = "alice", roles = {"admin", "author", "reader"})
 class BlogResourceTest {
+
+    @Test
+    @TestSecurity
+    void anonymousCanReadBlogs() {
+        getBody("/blogs", Status.OK);
+    }
+
+    @Test
+    @TestSecurity
+    void anonymousCannotWrite() {
+        RestAssured
+                .given()
+                    .body("{}")
+                    .contentType(MediaType.APPLICATION_JSON)
+                .when()
+                    .post("/blogs")
+                .then()
+                    .statusCode(Status.UNAUTHORIZED.getStatusCode());
+
+        RestAssured
+                .given()
+                    .body("{}")
+                    .contentType(MediaType.APPLICATION_JSON)
+                .when()
+                    .patch("/blogs/1")
+                .then()
+                    .statusCode(Status.UNAUTHORIZED.getStatusCode());
+
+        RestAssured
+                .when()
+                    .delete("/blogs/1")
+                .then()
+                    .statusCode(Status.UNAUTHORIZED.getStatusCode())
+                    .header("WWW-Authenticate", "Bearer")
+                    .body("status", is(Status.UNAUTHORIZED.getStatusCode()));
+    }
+
+    @Test
+    @TestSecurity(user = "reader", roles = "reader")
+    void readerCannotCreateBlog() {
+        RestAssured
+                .given()
+                    .body("{}")
+                    .contentType(MediaType.APPLICATION_JSON)
+                .when()
+                    .post("/blogs")
+                .then()
+                    .statusCode(Status.FORBIDDEN.getStatusCode())
+                    .body("status", is(Status.FORBIDDEN.getStatusCode()));
+    }
+
+    @Test
+    @TestSecurity(user = "bob", roles = {"author", "reader"})
+    void authorCanCreateAndPatchButNotDelete() {
+        String location = createBlog("Author", "Darf schreiben");
+
+        RestAssured
+                .given()
+                    .body("{\"content\": \"Neu\"}")
+                    .contentType(MediaType.APPLICATION_JSON)
+                .when()
+                    .patch(location)
+                .then()
+                    .statusCode(Status.OK.getStatusCode());
+
+        RestAssured
+                .when()
+                    .delete(location)
+                .then()
+                    .statusCode(Status.FORBIDDEN.getStatusCode());
+    }
 
     @Test
     @Order(1)
