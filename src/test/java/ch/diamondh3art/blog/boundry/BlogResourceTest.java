@@ -7,7 +7,6 @@ import io.quarkus.test.security.TestSecurity;
 import io.restassured.RestAssured;
 import jakarta.inject.Inject;
 import jakarta.json.Json;
-import jakarta.json.JsonArray;
 import jakarta.json.JsonObject;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response.Status;
@@ -27,6 +26,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * System test of the blog API: everything goes through HTTP and JSON, no service or entity class
  * is touched. The order only matters for the first two tests, which compare the record count
  * before and after a POST. Runs as admin unless a test says otherwise, so no Keycloak is needed.
+ * Tests without a logged-in user live in {@link PublicBlogResourceTest}, because only those also
+ * run against the packaged application.
  * Only {@link #foreignBlog} uses the service, because a blog of another user cannot be created
  * while a test runs as a single user.
  */
@@ -54,42 +55,6 @@ class BlogResourceTest {
     @TestSecurity(user = "bob", roles = {"author", "reader"})
     void authorPatchingUnknownBlogGetsNotFound() {
         patchExpecting("/blogs/999999", Status.NOT_FOUND);
-    }
-
-    @Test
-    @TestSecurity
-    void anonymousCanReadBlogs() {
-        getBody("/blogs", Status.OK);
-    }
-
-    @Test
-    @TestSecurity
-    void anonymousCannotWrite() {
-        RestAssured
-                .given()
-                    .body("{}")
-                    .contentType(MediaType.APPLICATION_JSON)
-                .when()
-                    .post("/blogs")
-                .then()
-                    .statusCode(Status.UNAUTHORIZED.getStatusCode());
-
-        RestAssured
-                .given()
-                    .body("{}")
-                    .contentType(MediaType.APPLICATION_JSON)
-                .when()
-                    .patch("/blogs/1")
-                .then()
-                    .statusCode(Status.UNAUTHORIZED.getStatusCode());
-
-        RestAssured
-                .when()
-                    .delete("/blogs/1")
-                .then()
-                    .statusCode(Status.UNAUTHORIZED.getStatusCode())
-                    .header("WWW-Authenticate", "Bearer")
-                    .body("status", is(Status.UNAUTHORIZED.getStatusCode()));
     }
 
     @Test
@@ -176,47 +141,6 @@ class BlogResourceTest {
 
         JsonObject blog = readObject(getBody(location, Status.OK));
         assertEquals("Zaehlung", blog.getString("title"));
-    }
-
-    @Test
-    void listReturnsEnvelopeWithMetaData() {
-        JsonObject page = readObject(getBody("/blogs?page=0&size=1", Status.OK));
-
-        JsonArray data = page.getJsonArray("data");
-        JsonObject meta = page.getJsonObject("meta");
-
-        assertEquals(1, data.size());
-        assertEquals(1, meta.getInt("size"));
-        assertEquals(0, meta.getInt("page"));
-        assertEquals(data.size(), meta.getInt("count"));
-        assertTrue(meta.getJsonNumber("totalCount").longValue() >= data.size());
-    }
-
-    @Test
-    void invalidPageSizeReturnsBadRequest() {
-        JsonObject error = readObject(getBody("/blogs?size=0", Status.BAD_REQUEST));
-
-        assertEquals(Status.BAD_REQUEST.getStatusCode(), error.getInt("status"));
-        assertEquals("size must be between 1 and 100", error.getString("message"));
-    }
-
-    @Test
-    void getUnknownBlogReturnsJsonError() {
-        String responseBody = RestAssured
-                .when()
-                    .get("/blogs/999999")
-                .then()
-                    .statusCode(Status.NOT_FOUND.getStatusCode())
-                    .header("info", "Blog with id 999999 not found")
-                    .extract()
-                    .body()
-                    .asString();
-
-        JsonObject error = readObject(responseBody);
-
-        assertEquals(Status.NOT_FOUND.getStatusCode(), error.getInt("status"));
-        assertEquals("Not Found", error.getString("error"));
-        assertEquals("Blog with id 999999 not found", error.getString("message"));
     }
 
     @Test
