@@ -15,13 +15,13 @@ public class CommentService {
 
     public List<Comment> getComments() {
         var comments = commentRepository.listAll();
-        Log.info("Returning " + comments.size() + " blogs");
+        Log.debugf("Returning %d comments", comments.size());
         return comments;
     }
 
     @Transactional
     public void addComment(Comment comment) {
-        Log.info("Adding comment " + comment.getId());
         commentRepository.persist(comment);
+        Log.infof("Comment %d added", comment.getId());
     }
 }

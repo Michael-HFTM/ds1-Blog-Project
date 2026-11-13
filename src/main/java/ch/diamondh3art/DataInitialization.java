@@ -6,11 +6,14 @@ import ch.diamondh3art.blog.control.UserRepository;
 import ch.diamondh3art.blog.entity.Blog;
 import ch.diamondh3art.blog.entity.Comment;
 import ch.diamondh3art.blog.entity.User;
+import io.quarkus.logging.Log;
+import io.quarkus.runtime.LaunchMode;
 import io.quarkus.runtime.StartupEvent;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 @ApplicationScoped
 public class DataInitialization {
@@ -22,9 +25,19 @@ public class DataInitialization {
     @Inject
     UserRepository userRepository;
 
+    @ConfigProperty(name = "quarkus.datasource.db-kind")
+    String dbKind;
+    // the issuer URL is public, unlike the client secret which must never be logged
+    @ConfigProperty(name = "quarkus.oidc.auth-server-url")
+    String oidcServerUrl;
+
     @Transactional
     public void init(@Observes StartupEvent event) {
+        Log.infof("Blog backend starting in %s mode (database: %s, OIDC: %s)",
+                LaunchMode.current(), dbKind, oidcServerUrl);
+
         if (blogRepository.count() == 0) {
+            Log.info("Database is empty, seeding sample data");
 
             User user1 = new User("Obi Wan Kenobi", "obi-wan.kenobi@federation.com");
             User user2 = new User("Darth Vader", "darth.vader@empire.com");
@@ -41,5 +54,7 @@ public class DataInitialization {
             Comment comment1 = new Comment("Skill issue.", blog2, user1);
             commentRepository.persist(comment1);
         }
+        Log.infof("Data ready: %d users, %d blogs, %d comments",
+                userRepository.count(), blogRepository.count(), commentRepository.count());
     }
 }

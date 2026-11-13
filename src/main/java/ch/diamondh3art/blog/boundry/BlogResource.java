@@ -5,6 +5,7 @@ import ch.diamondh3art.blog.boundry.dto.NewBlogDto;
 import ch.diamondh3art.blog.boundry.dto.UpdateBlogDto;
 import ch.diamondh3art.blog.control.BlogService;
 import ch.diamondh3art.blog.entity.Blog;
+import io.quarkus.logging.Log;
 import io.quarkus.security.identity.SecurityIdentity;
 import jakarta.annotation.security.DenyAll;
 import jakarta.annotation.security.PermitAll;
@@ -117,6 +118,7 @@ public class BlogResource {
         // @RolesAllowed cannot express "own blogs only"
         String username = securityIdentity.getPrincipal().getName();
         if (!securityIdentity.hasRole("admin") && !blogService.isAuthor(id, username)) {
+            Log.warnf("User %s tried to edit blog %d of another author", username, id);
             throw ResponseException.forbidden("Du darfst nur deine eigenen Blogs bearbeiten");
         }
 

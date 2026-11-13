@@ -1,5 +1,6 @@
 package ch.diamondh3art.blog.boundry;
 
+import io.quarkus.logging.Log;
 import io.quarkus.security.ForbiddenException;
 import io.quarkus.security.UnauthorizedException;
 import jakarta.ws.rs.core.HttpHeaders;
@@ -14,6 +15,7 @@ public class SecurityExceptionMappers {
 
     @ServerExceptionMapper
     public Response unauthorized(UnauthorizedException exception) {
+        Log.debug("Rejected unauthenticated request to a protected endpoint");
         return Response.fromResponse(ResponseException.errorResponse(Response.Status.UNAUTHORIZED, "Login required"))
                 .header(HttpHeaders.WWW_AUTHENTICATE, "Bearer")
                 .build();
@@ -21,6 +23,7 @@ public class SecurityExceptionMappers {
 
     @ServerExceptionMapper
     public Response forbidden(ForbiddenException exception) {
+        Log.warn("Rejected request without the required role");
         return ResponseException.errorResponse(Response.Status.FORBIDDEN, "Missing required role");
     }
 }

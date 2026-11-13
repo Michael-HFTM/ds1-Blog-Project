@@ -17,6 +17,7 @@ public class RestExceptionMapper implements ExceptionMapper<Exception> {
     public Response toResponse(Exception exception) {
         if (exception instanceof WebApplicationException webAppException) {
             Response response = webAppException.getResponse();
+            Log.debugf("Request failed with %d: %s", response.getStatus(), exception.getMessage());
             if (response.hasEntity()) {
                 // already carries an ErrorResponse, e.g. thrown as ResponseException
                 return response;
@@ -25,6 +26,7 @@ public class RestExceptionMapper implements ExceptionMapper<Exception> {
         }
 
         if (exception instanceof IllegalArgumentException) {
+            Log.debugf("Bad request: %s", exception.getMessage());
             return errorResponse(Response.Status.BAD_REQUEST, exception.getMessage());
         }
 
