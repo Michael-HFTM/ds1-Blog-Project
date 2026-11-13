@@ -21,7 +21,8 @@ configuration in the Admin Console is needed.
    ```
 
    The first start takes a moment until the realm is imported. The Admin Console is then available
-   at <http://keycloak:8180> (or <http://localhost:8180>), login `admin` / `admin`.
+   at <http://keycloak:8180> (or <http://localhost:8180>), login `admin` with the
+   `KEYCLOAK_ADMIN_PASSWORD` from your `.env`.
 
 The Keycloak data directory is persisted in the `keycloak_data` volume, so changes made in the
 Admin Console survive a container restart. The flip side: `--import-realm` skips a realm that

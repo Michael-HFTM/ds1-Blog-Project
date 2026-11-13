@@ -20,7 +20,11 @@ Quarkus runs with the `prod` profile there: no Dev Services and no hot reload.
 
    The first build downloads the base image and therefore takes a while without showing any progress.
 
-2. **Start Keycloak and the backend:**
+2. **Provide the secrets.** `docker-compose` reads the `.env` in the project folder (see
+   [Getting started](../README.md#getting-started)) and hands `QUARKUS_OIDC_CREDENTIALS_SECRET` to the
+   backend container. The image itself contains no secret. Without the variables `docker-compose` refuses to start.
+
+3. **Start Keycloak and the backend:**
 
    ```shell script
    docker-compose up -d
