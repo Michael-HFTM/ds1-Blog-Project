@@ -30,13 +30,20 @@ The currently implemented features are:
 Run these steps from the root folder to test the auth setup:
 
 1. **Add the hosts entry** once, see [Keycloak setup](docs/keycloak.md#setup).
-2. **Start Keycloak** (only Keycloak, the backend container would block port 8080):
+2. **Create the `.env`** with the secrets from the template, it is ignored by Git. `./mvnw quarkus:dev`
+   and `docker-compose` both read it:
+
+   ```shell script
+   cp .env.example .env
+   ```
+
+3. **Start Keycloak** (only Keycloak, the backend container would block port 8080):
 
    ```shell script
    docker-compose up -d keycloak
    ```
 
-3. **Start the application** once Keycloak has imported the realm, which takes a moment on the first start:
+4. **Start the application** once Keycloak has imported the realm, which takes a moment on the first start:
 
    ```shell script
    ./mvnw quarkus:dev

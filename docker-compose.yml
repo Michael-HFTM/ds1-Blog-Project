@@ -4,6 +4,9 @@ services:
   blog-backend:
     image: michael-hftm/blog-backend:latest
     container_name: blog-backend
+    # Werte stammen aus der .env im Projektordner, die docker-compose automatisch einliest
+    environment:
+      QUARKUS_OIDC_CREDENTIALS_SECRET: ${QUARKUS_OIDC_CREDENTIALS_SECRET:?in .env setzen}
     ports:
       - "8080:8080"
     depends_on:
@@ -18,7 +21,7 @@ services:
     command: start-dev --import-realm
     environment:
       KEYCLOAK_ADMIN: admin
-      KEYCLOAK_ADMIN_PASSWORD: admin
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?in .env setzen}
       KC_HTTP_PORT: 8180
       KC_HOSTNAME_URL: http://keycloak:8180
     ports:
