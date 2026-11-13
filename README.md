@@ -11,7 +11,8 @@ This is a project for the class 'Distributed Systems 1' at HFTM Grenchen.
 ---
 
 The currently implemented features are:
-- Docker-Compose for local database setup
+- H2 in-memory database, recreated on every start
+- Docker-Compose for the local Keycloak setup
 - Some blog entities with corresponding repositories, services and tests 
   - DataInitialization.java inserts some initial data into the database
 - Basic CRUD operations for the blog entities
@@ -29,7 +30,7 @@ The currently implemented features are:
 Run these steps from the root folder to test the auth setup:
 
 1. **Add the hosts entry** once, see [Keycloak setup](#setup).
-2. **Start the database and Keycloak:**
+2. **Start Keycloak:**
 
    ```shell script
    docker-compose up -d
@@ -277,19 +278,17 @@ so no base URI has to be configured. Covered are the CRUD happy paths, validatio
 search meta data, the `Location` header and the role and ownership rules. `@TestSecurity`
 (`quarkus-test-security`) sets the caller per test, so these tests need no token.
 
-Run them against the local database (`docker-compose up -d`):
+They use the H2 in-memory database, no external database is needed:
 
 ```shell script
 ./mvnw test
 ```
 
 ---
-# Local DB
-To avoid compatibility issues with Quarkus and Docker hosted in WSL, there is a docker-compose file for a local database setup.
-```shell script
-# start the database (form the root folder)
-docker-compose up -d
-```
+# Database
+The application uses an H2 in-memory database (`quarkus-jdbc-h2`), no database container is needed.
+The schema is recreated on every start (`drop-and-create`) and `DataInitialization` inserts the
+initial data again, so all changes are lost when the application stops.
 
 ---
 # Keycloak
