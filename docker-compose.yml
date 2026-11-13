@@ -1,23 +1,16 @@
 services:
-#  mysql:
-#    image: mysql:8.0
-#    container_name: quarkus-mysql
-#    environment:
-#      MYSQL_ROOT_PASSWORD: root
-#      MYSQL_DATABASE: appdb
-#      MYSQL_USER: quarkus
-#      MYSQL_PASSWORD: quarkus
-#    ports:
-#      - "3306:3306"
-#    volumes:
-#      - mysql_data:/var/lib/mysql
-#    healthcheck:
-#      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-#      interval: 10s
-#      timeout: 5s
-#      retries: 5
-#    networks:
-#      - blog-nw
+
+  # Image zuerst mit './mvnw package' bauen
+  blog-backend:
+    image: michael-hftm/blog-backend:latest
+    container_name: blog-backend
+    ports:
+      - "8080:8080"
+    depends_on:
+      keycloak:
+        condition: service_healthy
+    networks:
+      - blog-nw
 
   keycloak:
     image: quay.io/keycloak/keycloak:22.0.1
@@ -33,6 +26,12 @@ services:
     volumes:
       - keycloak_data:/opt/keycloak/data
       - ./src/blog-realm.json:/opt/keycloak/data/import/blog-realm.json
+    # Image hat kein curl, darum Port-Check über bash
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/localhost/8180"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
     networks:
       - blog-nw
 
@@ -41,5 +40,4 @@ networks:
     name: blog-nw
 
 volumes:
-#  mysql_data:
   keycloak_data:
