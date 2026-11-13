@@ -41,7 +41,8 @@ public class BlogService {
         // count() ignores the paging set above, so this is the total over all pages
         long totalCount = query.count();
         List<Blog> blogs = query.list();
-        Log.info("Returning " + blogs.size() + " of " + totalCount + " blogs");
+        Log.debugf("Returning %d of %d blogs (page %d, size %d, search=%s)",
+                blogs.size(), totalCount, page, size, searchString.orElse("-"));
 
         return PagedResponse.of(blogs, totalCount, query.pageCount(), page, size);
     }
@@ -64,8 +65,8 @@ public class BlogService {
         // otherwise only fail on flush - and Quarkus maps that to 500 instead of 400
         validate(blog);
 
-        Log.info("Adding blog: " + blog.getTitle());
         blogRepository.persist(blog);
+        Log.infof("Blog %d created by %s: '%s'", blog.getId(), blog.getAuthor(), blog.getTitle());
         return blog;
     }
 
@@ -91,7 +92,7 @@ public class BlogService {
         // a PATCH body is partial, so only the merged entity can be validated
         validate(existingBlog);
 
-        Log.info("Updating blog: " + existingBlog.getId());
+        Log.infof("Blog %d updated", existingBlog.getId());
 
         return existingBlog;
     }
@@ -114,5 +115,6 @@ public class BlogService {
         if (!blogRepository.deleteById(id)) {
             throw ResponseException.notFound("Blog with id " + id + " not found");
         }
+        Log.infof("Blog %d deleted together with its comments", id);
     }
 }

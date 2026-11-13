@@ -15,13 +15,14 @@ public class UserService {
 
     public List<User> getUsers() {
         var users = userRepository.listAll();
-        Log.info("Returning " + users.size() + " blogs");
+        Log.debugf("Returning %d users", users.size());
         return users;
     }
 
     @Transactional
     public void addUser(User user) {
-        Log.info("Adding blog " + user.getName());
         userRepository.persist(user);
+        // no e-mail address in the log, it is personal data
+        Log.infof("User %d added: %s", user.getId(), user.getName());
     }
 }
