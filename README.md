@@ -22,6 +22,10 @@ The currently implemented features are:
   - Own request/response DTOs instead of the entity (see [DTOs and mapping](docs/rest-api.md#dtos-and-mapping))
   - CORS enabled for browser clients
 - Automated tests: service tests plus an HTTP level test of the API with REST Assured
+  - Black box integration tests with `@QuarkusIntegrationTest` against the container image
+- Container image published on GitHub Packages: `ghcr.io/michael-hftm/blog-backend:latest` (public)
+- Consistent logging with `io.quarkus.logging.Log` (system state, business events, errors)
+- Own configuration properties (`blog.paging.max-size`, `blog.seed-data.enabled`) and secrets in a git-ignored `.env`
 
 
 ---
@@ -59,9 +63,18 @@ Run everything from the root folder.
 
 ## 2a. Run the image (production mode)
 
+The image is public on GitHub Packages, building it yourself is **not** needed.
+`docker-compose` pulls it automatically:
+
+```shell script
+docker-compose up -d         # pulls the image, starts Keycloak and the backend in the network blog-nw
+```
+
+Only after changing the code, build the image locally first (overrides the pulled one):
+
 ```shell script
 ./mvnw package -DskipTests   # builds the JAR and the image ghcr.io/michael-hftm/blog-backend:latest
-docker-compose up -d         # starts Keycloak and the backend in the network blog-nw
+docker-compose up -d
 ```
 
 The backend waits for the Keycloak healthcheck and reaches it inside the network as `keycloak:8180`.
