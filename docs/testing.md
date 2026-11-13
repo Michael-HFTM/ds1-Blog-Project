@@ -27,3 +27,18 @@ They use the H2 in-memory database, no external database is needed:
 ```shell script
 ./mvnw test
 ```
+
+## Black box tests against the packaged application
+
+`PublicBlogResourceIT` extends `PublicBlogResourceTest` and is annotated with
+`@QuarkusIntegrationTest`, so the same REST Assured tests run against the finished artifact instead
+of the test profile. Since `quarkus.container-image.build=true` is set, Maven first builds the
+Docker image and Quarkus starts it as a container in the `prod` profile (Docker has to be running):
+
+```shell script
+./mvnw verify -DskipITs=false
+```
+
+Only the tests without a logged-in user are part of it. `@TestSecurity` and `@Inject` only work
+inside `@QuarkusTest`, against the packaged application the protected endpoints would need a real
+Keycloak token. Those cases stay in `BlogResourceTest`.
