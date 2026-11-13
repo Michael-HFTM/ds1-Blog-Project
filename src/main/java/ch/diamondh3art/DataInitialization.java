@@ -24,6 +24,8 @@ public class DataInitialization {
     CommentRepository commentRepository;
     @Inject
     UserRepository userRepository;
+    @ConfigProperty(name = "blog.seed-data.enabled", defaultValue = "true")
+    boolean seedDataEnabled;
 
     @ConfigProperty(name = "quarkus.datasource.db-kind")
     String dbKind;
@@ -36,7 +38,9 @@ public class DataInitialization {
         Log.infof("Blog backend starting in %s mode (database: %s, OIDC: %s)",
                 LaunchMode.current(), dbKind, oidcServerUrl);
 
-        if (blogRepository.count() == 0) {
+        if (!seedDataEnabled) {
+            Log.info("Seeding sample data is disabled (blog.seed-data.enabled=false)");
+        } else if (blogRepository.count() == 0) {
             Log.info("Database is empty, seeding sample data");
 
             User user1 = new User("Obi Wan Kenobi", "obi-wan.kenobi@federation.com");

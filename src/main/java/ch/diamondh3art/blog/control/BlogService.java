@@ -15,11 +15,10 @@ import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 @ApplicationScoped
 public class BlogService {
-
-    private static final int MAX_PAGE_SIZE = 100;
 
     @Inject
     BlogRepository blogRepository;
@@ -27,13 +26,15 @@ public class BlogService {
     CommentRepository commentRepository;
     @Inject
     Validator validator;
+    @ConfigProperty(name = "blog.paging.max-size", defaultValue = "100")
+    int maxSize;
 
     public PagedResponse<Blog> getBlogs(Optional<String> searchString, int page, int size) {
         if (page < 0) {
             throw ResponseException.badRequest("page must not be negative");
         }
-        if (size < 1 || size > MAX_PAGE_SIZE) {
-            throw ResponseException.badRequest("size must be between 1 and " + MAX_PAGE_SIZE);
+        if (size < 1 || size > maxSize) {
+            throw ResponseException.badRequest("size must be between 1 and " + maxSize);
         }
 
         PanacheQuery<Blog> query = blogRepository.search(searchString).page(Page.of(page, size));
