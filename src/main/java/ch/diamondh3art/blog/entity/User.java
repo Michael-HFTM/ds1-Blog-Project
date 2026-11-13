@@ -3,8 +3,11 @@ package ch.diamondh3art.blog.entity;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 
 @Entity
+// USER ist in H2 ein reserviertes Wort
+@Table(name = "users")
 public class User {
 
     @Id
