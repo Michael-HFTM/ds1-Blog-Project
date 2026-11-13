@@ -2,7 +2,7 @@ services:
 
   # Image zuerst mit './mvnw package' bauen
   blog-backend:
-    image: michael-hftm/blog-backend:latest
+    image: ghcr.io/michael-hftm/blog-backend:latest
     container_name: blog-backend
     # Werte stammen aus der .env im Projektordner, die docker-compose automatisch einliest
     environment:

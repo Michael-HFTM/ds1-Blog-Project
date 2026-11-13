@@ -11,7 +11,7 @@ In production mode the application runs as a container next to Keycloak, both in
 Quarkus runs with the `prod` profile there: no Dev Services and no hot reload.
 
 1. **Build the JAR and the image.** The extension `quarkus-container-image-docker` together with
-   `quarkus.container-image.build=true` builds the image `michael-hftm/blog-backend:latest` during `package`
+   `quarkus.container-image.build=true` builds the image `ghcr.io/michael-hftm/blog-backend:latest` during `package`
    with `src/main/docker/Dockerfile.jvm`:
 
    ```shell script
