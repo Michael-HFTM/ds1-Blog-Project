@@ -11,7 +11,8 @@ This is a project for the class 'Distributed Systems 1' at HFTM Grenchen.
 ---
 
 The currently implemented features are:
-- H2 in-memory database, recreated on every start
+- MySQL database in the container `blog-mysql`, data kept across restarts
+  - Separate throwaway container `blog-mysql-dev` for dev mode and tests, schema recreated on every start
 - Docker-Compose for the local Keycloak setup
 - Some blog entities with corresponding repositories, services and tests 
   - DataInitialization.java inserts some initial data into the database
@@ -36,7 +37,7 @@ The backend needs two surrounding systems:
 | System | How it runs | Configuration |
 |--------|-------------|---------------|
 | **Keycloak** (OIDC, users and roles) | Container `keycloak` from `docker-compose.yml`, imports the realm `src/blog-realm.json` on start | `quarkus.oidc.auth-server-url=http://keycloak:8180/realms/blog`, admin password from `.env` |
-| **Database** | H2 in-memory inside the backend, **no container needed**. Recreated on every start, sample data from `DataInitialization` | `quarkus.datasource.*` in `application.properties`, `blog.seed-data.enabled` |
+| **Database** | MySQL container `blog-mysql` from `docker-compose.yml` for the backend container, data kept in a volume (schema only updated). Dev mode and tests use the separate container `blog-mysql-dev` without volume, schema recreated on every start. Sample data from `DataInitialization` whenever the database is empty | `quarkus.datasource.*` in `application.properties`, password from `.env`, `blog.seed-data.enabled` |
 
 ## 1. One-time preparation
 
@@ -60,6 +61,8 @@ Run everything from the root folder.
    |----------|---------|
    | `QUARKUS_OIDC_CREDENTIALS_SECRET` | Backend, secret of the Keycloak client `backend-service` |
    | `KEYCLOAK_ADMIN_PASSWORD` | Keycloak, password of the Admin Console user `admin` |
+   | `MYSQL_ROOT_PASSWORD` | MySQL, password of `root` |
+   | `QUARKUS_DATASOURCE_PASSWORD` | MySQL and backend, password of the database user `dbuser` |
 
 ## 2a. Run the image (production mode)
 
@@ -67,7 +70,7 @@ The image is public on GitHub Packages, building it yourself is **not** needed.
 `docker-compose` pulls it automatically:
 
 ```shell script
-docker-compose up -d         # pulls the image, starts Keycloak and the backend in the network blog-nw
+docker-compose up -d         # pulls the image, starts Keycloak, MySQL and the backend in the network blog-nw
 ```
 
 Only after changing the code, build the image locally first (overrides the pulled one):
@@ -77,16 +80,24 @@ Only after changing the code, build the image locally first (overrides the pulle
 docker-compose up -d
 ```
 
-The backend waits for the Keycloak healthcheck and reaches it inside the network as `keycloak:8180`.
+The backend waits for the Keycloak and MySQL healthchecks and reaches them inside the network as
+`keycloak:8180` and `blog-mysql:3306`.
 Without `.env`, `docker-compose` refuses to start. Details in [Deployment](docs/deployment.md).
 
 ## 2b. Run in dev mode (development)
 
-Start only Keycloak, the backend container would block port 8080:
+Start only Keycloak and the dev database, the backend container would block port 8080. The dev mode
+reaches `blog-mysql-dev` via `localhost:3306`, the data of `blog-mysql` stays untouched:
 
 ```shell script
-docker-compose up -d keycloak
+docker-compose --profile dev up -d keycloak blog-mysql-dev
 ./mvnw quarkus:dev
+```
+
+Check the stored data in the MySQL console (`blog-mysql` for the backend container):
+
+```shell script
+docker exec -it blog-mysql-dev mysql -u dbuser -pdbuser blogdb -e "SELECT * FROM Blog;"
 ```
 
 Either way the API runs on <http://localhost:8080>, the Swagger UI on <http://localhost:8080/q/swagger-ui>.
@@ -153,5 +164,5 @@ How to inspect a token and the roles it carries is described in [Keycloak](docs/
 | [Security](docs/security.md) | OWASP API Top 10 assessment and authorization concept (roles, access rules) |
 | [Keycloak](docs/keycloak.md) | Setup, realm contents, realm export, access tokens and example API calls |
 | [Testing](docs/testing.md) | Service and REST Assured tests |
-| [Deployment](docs/deployment.md) | H2 database and production build with Docker |
+| [Deployment](docs/deployment.md) | MySQL database and production build with Docker |
 | [Quarkus](docs/quarkus.md) | Generic Quarkus commands (dev mode, packaging, native build) |

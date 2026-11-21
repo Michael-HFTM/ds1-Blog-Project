@@ -1,9 +1,16 @@
 # Deployment
 
 ## Database
-The application uses an H2 in-memory database (`quarkus-jdbc-h2`), no database container is needed.
-The schema is recreated on every start (`drop-and-create`) and `DataInitialization` inserts the
-initial data again, so all changes are lost when the application stops.
+The application uses MySQL (`quarkus-jdbc-mysql`) in the container `blog-mysql` from `docker-compose.yml`,
+the data lives in the volume `blog-data`. The backend container reaches it via `blog-mysql:3306` in the
+network `blog-nw`, the host via `localhost:3307`. The password of `dbuser` comes from
+`QUARKUS_DATASOURCE_PASSWORD` in the `.env`.
+
+In the container (`prod` profile) Hibernate only updates the schema (`update`), so the data survives restarts of
+the backend and the database. `DataInitialization` inserts the initial data only when the database is empty.
+
+Dev mode and tests use the separate container `blog-mysql-dev` (`docker-compose --profile dev`) on
+`localhost:3306`. It has no volume and the schema is recreated on every start (`drop-and-create`).
 
 ---
 ## Production build with Docker
