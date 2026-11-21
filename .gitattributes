@@ -1,0 +1,28 @@
+# Unbekannte Textdateien erkennt Git selbst und speichert sie mit LF
+* text=auto eol=lf
+
+# Quellcode, Konfiguration und Doku immer mit LF, unabhängig von core.autocrlf
+*.java       text eol=lf
+*.xml        text eol=lf
+*.properties text eol=lf
+*.yml        text eol=lf
+*.yaml       text eol=lf
+*.json       text eol=lf
+*.sql        text eol=lf
+*.md         text eol=lf
+*.sh         text eol=lf
+.env.example text eol=lf
+.gitignore   text eol=lf
+.dockerignore text eol=lf
+Dockerfile*  text eol=lf
+
+# Der Maven-Wrapper muss im Linux-Container bzw. in WSL laufen, die .cmd-Variante braucht CRLF
+mvnw         text eol=lf
+*.cmd        text eol=crlf
+*.bat        text eol=crlf
+
+# Binärdateien nie anfassen
+*.jar binary
+*.png binary
+*.jpg binary
+*.ico binary
