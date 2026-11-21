@@ -38,9 +38,28 @@ services:
     networks:
       - blog-nw
 
+  # Containername dient im Netzwerk blog-nw als Hostname
+  blog-mysql:
+    image: mysql:8.0
+    container_name: blog-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?in .env setzen}
+      MYSQL_USER: dbuser
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?in .env setzen}
+      MYSQL_DATABASE: blogdb
+    ports:
+      - "3306:3306"
+    volumes:
+      - blog-data:/var/lib/mysql
+    networks:
+      - blog-nw
+
 networks:
   blog-nw:
     name: blog-nw
 
 volumes:
   keycloak_data:
+  # Fester Name statt Projekt-Präfix, damit es dasselbe Volume wie beim 'docker run -v blog-data:...' ist
+  blog-data:
+    name: blog-data
