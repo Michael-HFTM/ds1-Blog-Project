@@ -5,10 +5,13 @@ services:
     container_name: blog-backend
     environment:
       QUARKUS_OIDC_CREDENTIALS_SECRET: ${QUARKUS_OIDC_CREDENTIALS_SECRET}
+      QUARKUS_DATASOURCE_PASSWORD: ${QUARKUS_DATASOURCE_PASSWORD}
     ports:
       - "8080:8080"
     depends_on:
       keycloak:
+        condition: service_healthy
+      blog-mysql:
         condition: service_healthy
     networks:
       - blog-nw
@@ -41,14 +44,34 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_USER: dbuser
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_PASSWORD: ${QUARKUS_DATASOURCE_PASSWORD}
+      MYSQL_DATABASE: blogdb
+    # 3307 statt 3306, damit Dev-Modus und Tests nie aus Versehen auf die 'prod'-Daten zugreifen
+    ports:
+      - "3307:3306"
+    volumes:
+      - blog-data:/var/lib/mysql
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${MYSQL_ROOT_PASSWORD}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - blog-nw
+
+  # Wegwerf-DB für Dev-Modus und Tests, ohne Volume. Startet nur mit '--profile dev'
+  blog-mysql-dev:
+    image: mysql:8.0
+    container_name: blog-mysql-dev
+    profiles: [ dev ]
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_USER: dbuser
+      MYSQL_PASSWORD: ${QUARKUS_DATASOURCE_PASSWORD}
       MYSQL_DATABASE: blogdb
     ports:
       - "3306:3306"
-    volumes:
-      - blog-data:/var/lib/mysql
-    networks:
-      - blog-nw
 
 networks:
   blog-nw:
