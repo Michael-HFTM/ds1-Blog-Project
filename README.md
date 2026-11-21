@@ -12,7 +12,8 @@ This is a project for the class 'Distributed Systems 1' at HFTM Grenchen.
 
 The currently implemented features are:
 - MySQL database in the container `blog-mysql`, data kept across restarts
-  - Separate throwaway container `blog-mysql-dev` for dev mode and tests, schema recreated on every start
+  - Schema managed by versioned Flyway migrations in `src/main/resources/db/migration`
+  - Separate throwaway container `blog-mysql-dev` for dev mode and tests, cleaned on every start
 - Docker-Compose for the local Keycloak setup
 - Some blog entities with corresponding repositories, services and tests 
   - DataInitialization.java inserts some initial data into the database
@@ -37,7 +38,7 @@ The backend needs two surrounding systems:
 | System | How it runs | Configuration |
 |--------|-------------|---------------|
 | **Keycloak** (OIDC, users and roles) | Container `keycloak` from `docker-compose.yml`, imports the realm `src/blog-realm.json` on start | `quarkus.oidc.auth-server-url=http://keycloak:8180/realms/blog`, admin password from `.env` |
-| **Database** | MySQL container `blog-mysql` from `docker-compose.yml` for the backend container, data kept in a volume (schema only updated). Dev mode and tests use the separate container `blog-mysql-dev` without volume, schema recreated on every start. Sample data from `DataInitialization` whenever the database is empty | `quarkus.datasource.*` in `application.properties`, password from `.env`, `blog.seed-data.enabled` |
+| **Database** | MySQL container `blog-mysql` from `docker-compose.yml` for the backend container, data kept in a volume. Schema from the Flyway migrations, applied on start. Dev mode and tests use the separate container `blog-mysql-dev` without volume, cleaned on every start. Sample data from `DataInitialization` whenever the database is empty | `quarkus.datasource.*` in `application.properties`, password from `.env`, `blog.seed-data.enabled` |
 
 ## 1. One-time preparation
 
