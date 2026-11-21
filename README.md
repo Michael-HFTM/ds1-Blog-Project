@@ -11,7 +11,7 @@ This is a project for the class 'Distributed Systems 1' at HFTM Grenchen.
 ---
 
 The currently implemented features are:
-- MySQL database in the container `blog-mysql` with the volume `blog-data`, schema recreated on every start
+- MySQL database in the container `blog-mysql` with the volume `blog-data`, schema migrations with Flyway
 - Docker-Compose for the local Keycloak setup
 - Some blog entities with corresponding repositories, services and tests 
   - DataInitialization.java inserts some initial data into the database
@@ -36,7 +36,7 @@ The backend needs two surrounding systems:
 | System | How it runs | Configuration |
 |--------|-------------|---------------|
 | **Keycloak** (OIDC, users and roles) | Container `keycloak` from `docker-compose.yml`, imports the realm `src/blog-realm.json` on start | `quarkus.oidc.auth-server-url=http://keycloak:8180/realms/blog`, admin password from `.env` |
-| **Database** | MySQL container `blog-mysql` from `docker-compose.yml`, data in the volume `blog-data`. Schema recreated on every backend start, sample data from `DataInitialization` | `quarkus.datasource.*` in `application.properties`, password from `.env`, `blog.seed-data.enabled` |
+| **Database** | MySQL container `blog-mysql` from `docker-compose.yml`, data in the volume `blog-data`. Schema from Flyway migrations, sample data from `DataInitialization` when empty | `quarkus.datasource.*` in `application.properties`, password from `.env`, `blog.seed-data.enabled` |
 
 ## 1. One-time preparation
 
