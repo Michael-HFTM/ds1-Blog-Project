@@ -1,12 +1,10 @@
 services:
 
-  # Image zuerst mit './mvnw package' bauen
   blog-backend:
     image: ghcr.io/michael-hftm/blog-backend:latest
     container_name: blog-backend
-    # Werte stammen aus der .env im Projektordner, die docker-compose automatisch einliest
     environment:
-      QUARKUS_OIDC_CREDENTIALS_SECRET: ${QUARKUS_OIDC_CREDENTIALS_SECRET:?in .env setzen}
+      QUARKUS_OIDC_CREDENTIALS_SECRET: ${QUARKUS_OIDC_CREDENTIALS_SECRET}
     ports:
       - "8080:8080"
     depends_on:
@@ -21,7 +19,7 @@ services:
     command: start-dev --import-realm
     environment:
       KEYCLOAK_ADMIN: admin
-      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?in .env setzen}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
       KC_HTTP_PORT: 8180
       KC_HOSTNAME_URL: http://keycloak:8180
     ports:
@@ -29,12 +27,26 @@ services:
     volumes:
       - keycloak_data:/opt/keycloak/data
       - ./src/blog-realm.json:/opt/keycloak/data/import/blog-realm.json
-    # Image hat kein curl, darum Port-Check über bash
     healthcheck:
       test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/localhost/8180"]
       interval: 10s
       timeout: 5s
       retries: 10
+    networks:
+      - blog-nw
+
+  blog-mysql:
+    image: mysql:8.0
+    container_name: blog-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_USER: dbuser
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_DATABASE: blogdb
+    ports:
+      - "3306:3306"
+    volumes:
+      - blog-data:/var/lib/mysql
     networks:
       - blog-nw
 
@@ -44,3 +56,4 @@ networks:
 
 volumes:
   keycloak_data:
+  blog-data:
