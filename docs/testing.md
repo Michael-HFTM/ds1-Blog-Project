@@ -22,9 +22,10 @@ so no base URI has to be configured. Covered are the CRUD happy paths, validatio
 search meta data, the `Location` header and the role and ownership rules. `@TestSecurity`
 (`quarkus-test-security`) sets the caller per test, so these tests need no token.
 
-They use the H2 in-memory database, no external database is needed:
+They use the MySQL container on `localhost:3306` (not Dev Services), start it first:
 
 ```shell script
+docker-compose up -d blog-mysql
 ./mvnw test
 ```
 

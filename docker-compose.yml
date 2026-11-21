@@ -7,10 +7,13 @@ services:
     # Werte stammen aus der .env im Projektordner, die docker-compose automatisch einliest
     environment:
       QUARKUS_OIDC_CREDENTIALS_SECRET: ${QUARKUS_OIDC_CREDENTIALS_SECRET:?in .env setzen}
+      QUARKUS_DATASOURCE_PASSWORD: ${QUARKUS_DATASOURCE_PASSWORD:?in .env setzen}
     ports:
       - "8080:8080"
     depends_on:
       keycloak:
+        condition: service_healthy
+      blog-mysql:
         condition: service_healthy
     networks:
       - blog-nw
@@ -45,12 +48,19 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?in .env setzen}
       MYSQL_USER: dbuser
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?in .env setzen}
+      MYSQL_PASSWORD: ${QUARKUS_DATASOURCE_PASSWORD:?in .env setzen}
       MYSQL_DATABASE: blogdb
     ports:
       - "3306:3306"
     volumes:
       - blog-data:/var/lib/mysql
+    # Über TCP prüfen: der temporäre Server während der Erst-Initialisierung lauscht nur auf dem Socket.
+    # ping braucht kein Login, auch "Access denied" heisst: Server läuft
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
     networks:
       - blog-nw
 
