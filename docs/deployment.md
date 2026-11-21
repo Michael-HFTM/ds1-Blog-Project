@@ -6,11 +6,15 @@ the data lives in the volume `blog-data`. The backend container reaches it via `
 network `blog-nw`, the host via `localhost:3307`. The password of `dbuser` comes from
 `QUARKUS_DATASOURCE_PASSWORD` in the `.env`.
 
-In the container (`prod` profile) Hibernate only updates the schema (`update`), so the data survives restarts of
-the backend and the database. `DataInitialization` inserts the initial data only when the database is empty.
+The schema belongs to Flyway: the versioned scripts in `src/main/resources/db/migration`
+(`V<version>__<description>.sql`) are applied on start (`quarkus.flyway.migrate-at-start`), Flyway records them
+in the table `flyway_schema_history`. Hibernate does not touch the schema (`strategy=none`). A script that has
+run once must never change, Flyway checks the checksum and aborts the start; schema changes go into a new
+script with a higher version. In the container the data survives restarts of the backend and the database,
+`DataInitialization` inserts the initial data only when the database is empty.
 
 Dev mode and tests use the separate container `blog-mysql-dev` (`docker-compose --profile dev`) on
-`localhost:3306`. It has no volume and the schema is recreated on every start (`drop-and-create`).
+`localhost:3306`. It has no volume and Flyway cleans it on every start (`clean-at-start`) before migrating.
 
 ---
 ## Production build with Docker
